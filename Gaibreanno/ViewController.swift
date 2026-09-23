@@ -1,7 +1,7 @@
 import UIKit
 
 final class ViewController: UIViewController, UIGestureRecognizerDelegate {
-    private enum Screen { case lobby, deck, library, battle, reward, level }
+    private enum Screen { case lobby, deck, library, battle, reward, level, settings }
     private let store = GameStore()
     private let backdrop = GameBackdrop()
     private let scroll = UIScrollView()
@@ -73,6 +73,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         content.frame = CGRect(x: (view.bounds.width - width) / 2, y: 0, width: width, height: 0)
         let height: CGFloat
         switch screen {
+        case .settings: height = buildSettings()
         case .level: height = buildLevels()
         case .lobby: height = buildLobby()
         case .deck: height = buildCollection(editing: true)
@@ -592,7 +593,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     private func showRules() {
         let message = "目标：在生命耗尽前击败敌人。\n\n① 选择手牌，再点击时间卡槽，也可直接拖动。\n\n过去：仅限单位，等待一回合后永久攻击 +2。\n现在：单位本回合出击，法术立即生效。\n未来：等待一回合，单位首次攻击或法术效果翻倍。\n\n结束回合：己方出击 → 敌方攻击 → 恢复能量 → 等待卡激活 → 抽 2 张牌。敌人机制与本轮攻击见战场顶部；点击关卡说明查看详情。\n\n长按卡牌查看效果。护盾可保留，能量上限 5，手牌上限 6。"
         let alert = UIAlertController(title: "掌握时间，打出连锁", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "开始出牌", style: .default))
+        alert.addAction(UIAlertAction(title: screen == .settings ? "知道了" : "开始出牌", style: .default))
         present(alert, animated: true)
     }
     private func showBattleLog() {
@@ -600,15 +601,48 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         alert.addAction(UIAlertAction(title: "继续牌局", style: .default)); present(alert, animated: true)
     }
     private func showSettings() {
-        let alert = UIAlertController(title: "设置", message: "进度自动保存在本机", preferredStyle: .actionSheet)
-        alert.addAction(UIAlertAction(title: "触感反馈：\(store.state.haptics ? "开启" : "关闭")", style: .default) { [weak self] _ in
-            guard let self = self else { return }; self.store.state.haptics.toggle(); self.store.save(); self.toast(self.store.state.haptics ? "触感反馈已开启" : "触感反馈已关闭")
-        })
-        alert.addAction(UIAlertAction(title: "减少动态效果：\(store.state.reducedMotion ? "开启" : "关闭")", style: .default) { [weak self] _ in
-            guard let self = self else { return }; self.store.state.reducedMotion.toggle(); self.store.save(); self.toast("显示设置已保存")
-        })
-        alert.addAction(UIAlertAction(title: "玩法说明", style: .default) { [weak self] _ in self?.showRules() })
-        alert.addAction(UIAlertAction(title: "取消", style: .cancel)); presentSheet(alert)
+        show(.settings)
+    }
+    private func buildSettings() -> CGFloat {
+        let back = button("返回", CGRect(x: 16, y: 8, width: 62, height: 38)) { [weak self] in self?.show(.lobby) }
+        back.accessibilityIdentifier = "settings.back"
+        title("设置", frame: CGRect(x: 84, y: 4, width: width - 168, height: 48), size: 34)
+        label("按自己的习惯，享受每一局", CGRect(x: 16, y: 70, width: inner, height: 24), size: 14, color: Palette.quiet, align: .center)
+
+        let options: [(String, String, Bool, Selector, String)] = [
+            ("触感反馈", "出牌与操作时提供轻微震动", store.state.haptics, #selector(hapticsChanged(_:)), "settings.haptics"),
+            ("减少动态效果", "减少卡牌弹动和战场震动", store.state.reducedMotion, #selector(motionChanged(_:)), "settings.motion")
+        ]
+        for (index, option) in options.enumerated() {
+            let panel = GamePanel(color: index == 0 ? UIColor(hex: 0x20377F) : UIColor(hex: 0x523D88))
+            panel.frame = CGRect(x: 16, y: 120 + CGFloat(index) * 110, width: inner, height: 94)
+            content.addSubview(panel)
+            label(option.0, CGRect(x: 18, y: 17, width: inner - 102, height: 27), size: 21, parent: panel, weight: .heavy)
+            label(option.1, CGRect(x: 18, y: 51, width: inner - 102, height: 24), size: 12, color: Palette.quiet, parent: panel)
+            let toggle = UISwitch()
+            toggle.frame.origin = CGPoint(x: inner - 71, y: 31)
+            toggle.onTintColor = Palette.cyan
+            toggle.isOn = option.2
+            toggle.accessibilityLabel = option.0
+            toggle.accessibilityHint = option.1
+            toggle.accessibilityIdentifier = option.4
+            toggle.addTarget(self, action: option.3, for: .valueChanged)
+            panel.addSubview(toggle)
+        }
+        let help = button("玩法说明", CGRect(x: 16, y: 348, width: inner, height: 58), icon: "questionmark.circle.fill") { [weak self] in self?.showRules() }
+        help.accessibilityIdentifier = "settings.rules"
+        let note = label("设置即时生效并自动保存\n卡组与冒险进度保存在本机", CGRect(x: 24, y: 437, width: width - 48, height: 52), size: 13, color: Palette.quiet, align: .center)
+        note.numberOfLines = 2
+        return 516
+    }
+    @objc private func hapticsChanged(_ sender: UISwitch) {
+        store.state.haptics = sender.isOn
+        store.save()
+        if sender.isOn { feedback() }
+    }
+    @objc private func motionChanged(_ sender: UISwitch) {
+        store.state.reducedMotion = sender.isOn
+        store.save()
     }
     private func showCardDetail(_ kind: CardKind) {
         let detail = CardDetailController(kind: kind, owned: store.state.collection.contains(kind))
