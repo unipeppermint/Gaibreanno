@@ -1,0 +1,29 @@
+Use case: ui-mockup.
+Create a polished high-fidelity product prototype image for an ORIGINAL native iOS portrait card puzzle game called “叠时档案”. This is an interface design presentation, not a poster. One large landscape board with EXACTLY THREE complete, equally sized, upright iPhone UI screens aligned side by side, ordered left to right: archive library, card puzzle worktable, completed restoration. Each screen has realistic 390:844 proportions, clean thin rounded device edge, native iOS status bar at 9:41, safe areas and home indicator. Flat front view, no perspective. Render high resolution, approximately 2400 x 1600 or larger, all three screens fully visible. Quiet warm neutral background outside the screens, generous gutters, small captions beneath each screen: “01 档案柜”, “02 修复桌”, “03 修复完成”.
+
+Visual design: sophisticated editorial archive aesthetic with ivory paper, subtle very fine paper grain, dark charcoal legible text, muted cyan-blue timeline accents, restrained cinnabar red archive stamps. Rich yet restrained hand-painted gouache story illustrations, coherent across all three screens. Rounded rectangular collectible story cards with fine borders and subtle tactile shadows. Primary controls dark desaturated teal. Native-feeling touch sizes and spacious margins. Large elegant Chinese serif titles paired with crisp readable Chinese sans-serif UI labels. Light mode. All Simplified Chinese text must be clear, accurate, and typeset, with no gibberish. Avoid dense paragraphs, fake tiny text, purple gradients, glossy casino visuals, medieval fantasy, excessive ornaments and fantasy card-game stats.
+
+LEFT SCREEN — archive library, state before starting the first case:
+Top heading exactly “叠时档案”, quiet subtitle “每一段过去，都有另一种可能”.
+Small chapter heading “第一章 · 小城旧事” and progress “0 / 4”.
+A dominant, beautifully illustrated story dossier card depicts a rain-worn small neighborhood bookshop, warm wooden doorway, faded wall mural visibly intact, blue rain, closed sign, restrained nostalgic details. Small index “档案 001”. Card title “雨季后的书店”. One concise line “让书店重开，留住老壁画”. Large primary button “打开档案”.
+Below it, show two compact next-case previews with small artwork and titles “未响起的掌声” and “寄错的旧照片”, visually secondary and not oversized.
+Bottom native tab bar: “档案”, “收藏”, “设置”, with 档案 selected. Simple consistent outline icons. Plenty of whitespace.
+
+MIDDLE SCREEN — the distinctive playable card worktable, same bookshop case, one action already placed:
+Top back chevron, title “雨季后的书店”, a small hint lightbulb.
+Directly below, TWO compact clearly readable objective chips: “书店重开” with hollow circle, and “壁画保留” with check mark. Small status “剩余干预 1 次”.
+Upper board section labeled “过去”: TWO obvious time slots side by side, labeled “雨季前” and “雨季后”. The first contains a real illustrated action card labeled “修补屋顶” showing a repaired blue-tiled roof. The second is an empty dashed outline card slot with a plus and the label “放入行动卡”. A delicate timeline between slots marks rainy weather, making chronological order unmistakable.
+Middle section labeled “今天”: THREE compact illustrated state cards in one row, each readable: “藏书” / “完好”, “壁画” / “保留”, “书店” / “停业”. Fine cyan causal lines lead from the roof card to the preserved books card. The mural is the same mural as in the library artwork. Short feedback below exactly “藏书保住了，读者还没回来”.
+Bottom hand section labeled “可用行动”: TWO inviting, larger touchable illustrated cards side by side: “社区共读” with people reading at a shared table, small effect text “需要完好的藏书”; “改大橱窗” with a newly cut storefront window, small effect text “吸引读者 · 拆除壁画”. Preserve the meaningful tradeoff.
+Bottom compact utility controls “撤销” and “提示”. Do not add a tab bar on the game board. Do not add a giant confirmation button. Card mechanics, time slots, and current consequences dominate the screen, not decoration. Everything fits without overlap.
+
+RIGHT SCREEN — successful restoration using exactly two actions:
+Top small archive index “档案 001”, prominent title “档案修复完成”.
+Large portrait collectible illustration of THE SAME bookshop now open on a clear day, repaired blue roof, happy readers and warm interior, original wall mural preserved. A small tasteful cinnabar stamp “已修复”. Bookshop geometry and mural match previous screens.
+Title under illustration “雨季后的书店”. TWO clear checked results “书店重新开门” and “老壁画完整保留”.
+Compact visually connected causal chain with two nodes/cards: “雨季前 · 修补屋顶” then “雨季后 · 社区共读”. Below, short text “使用 2 次干预”.
+Main primary button “下一份档案”. Secondary text button “查看前后对照”.
+Maintain consistent typography, card radii, buttons and illustrated world across the entire board.
+
+Content constraints: exactly these three screens, correct coherent states (left 0/4, middle one roof action placed and one intervention left, right two actions used and both goals met). The large window action must NOT be used in the success state because it destroys the mural. No random currencies, no combat, no loot boxes, no extra technical labels, no code. Aim for a credible shippable iPhone game UI that can be implemented with UIKit.

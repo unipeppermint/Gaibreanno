@@ -1,0 +1,19 @@
+# macOS metadata
+.DS_Store
+._*
+
+# Xcode build output
+build/
+DerivedData/
+*.xcarchive
+*.xcresult
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# Xcode user-specific settings
+xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager build output
+.build/
