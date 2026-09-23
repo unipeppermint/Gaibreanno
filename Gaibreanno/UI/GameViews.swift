@@ -27,7 +27,8 @@ extension CardKind {
         case .dragon, .elder: return UIColor(hex: 0xFFAE50)
         case .shield: return UIColor(hex: 0x36DFFF)
         case .rewind: return UIColor(hex: 0xE47FFF)
-        case .spark, .surge: return UIColor(hex: 0xFFE047)
+        case .spark: return UIColor(hex: 0xFFE047)
+        case .surge: return UIColor(hex: 0xAA86FF)
         case .guardian: return UIColor(hex: 0xFF8B8E)
         }
     }
@@ -37,7 +38,8 @@ extension CardKind {
         case .dragon, .elder: return "sparkles"
         case .shield, .guardian: return "shield.fill"
         case .rewind: return "backward.fill"
-        case .spark, .surge: return "bolt.fill"
+        case .spark: return "bolt.fill"
+        case .surge: return "cloud.bolt.fill"
         }
     }
 }
@@ -50,9 +52,17 @@ enum GameArt {
     private static var cached: [Int: UIImage] = [:]
     static func image(_ index: Int) -> UIImage? {
         if let existing = cached[index] { return existing }
-        guard let atlas = UIImage(named: "CardAtlas")?.cgImage else { return nil }
-        let cellW = CGFloat(atlas.width) / 3, cellH = CGFloat(atlas.height) / 3
-        let cell = CGRect(x: CGFloat(index % 3) * cellW, y: CGFloat(index / 3) * cellH, width: cellW, height: cellH)
+        // 0–8: cards, 9–14: enemies; the storm has a standalone illustration.
+        if index == 15 {
+            let image = UIImage(named: "EnergyStorm")
+            cached[index] = image
+            return image
+        }
+        let enemy = index >= 9
+        let tile = enemy ? index - 9 : index
+        guard let atlas = UIImage(named: enemy ? "EnemyAtlas" : "CardAtlas")?.cgImage else { return nil }
+        let cellW = CGFloat(atlas.width) / 3, cellH = CGFloat(atlas.height) / (enemy ? 2 : 3)
+        let cell = CGRect(x: CGFloat(tile % 3) * cellW, y: CGFloat(tile / 3) * cellH, width: cellW, height: cellH)
         guard let cg = atlas.cropping(to: cell.integral) else { return nil }
         let image = UIImage(cgImage: cg)
         cached[index] = image

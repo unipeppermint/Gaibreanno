@@ -31,7 +31,8 @@ enum CardKind: String, Codable, CaseIterable {
         case .dragon: return 1
         case .shield: return 2
         case .rewind: return 3
-        case .spark, .surge: return 4
+        case .spark: return 4
+        case .surge: return 15
         case .guardian: return 5
         case .oak: return 7
         case .elder: return 8
@@ -78,16 +79,41 @@ enum TimeLane: Int, CaseIterable, Codable {
     var hint: String { ["等待 · 永久成长", "本回合生效", "等待 · 首次翻倍"][rawValue] }
 }
 
+enum EncounterRule { case training, bark, shell, charge, drought, boss }
+
 struct Stage {
     let name: String
-    let region: String
     let enemy: String
     let health: Int
     let attack: Int
+    let rule: EncounterRule
+    let lesson: String
+    let briefing: String
+    let challenge: String
+    var hardModifier: String {
+        switch rule {
+        case .training: return "紧缩开局：初始能量只有 2。"
+        case .bark: return "再生树皮：敌方每次攻击后恢复 2 生命。"
+        case .shell: return "封锁现在：奇数回合不能向现在出牌。"
+        case .charge: return "碎盾重锤：偶数回合攻击前消除 2 护盾。"
+        case .drought: return "深度缺能：每回合只恢复 2 能量。"
+        case .boss: return "时间震荡：每第三回合敌方攻击后，将现在的单位退回手牌。"
+        }
+    }
+    var rewardMilestone: Bool { [.bark, .charge, .boss].contains(rule) }
     static let all = [
-        Stage(name: "失控的时钟", region: "齿轮森林", enemy: "暴走闹钟", health: 20, attack: 4),
-        Stage(name: "逆流回廊", region: "倒转之城", enemy: "逆流守卫", health: 28, attack: 5),
-        Stage(name: "零点风暴", region: "时间裂隙", enemy: "零点领主", health: 38, attack: 6)
+        Stage(name: "01 · 林间警报", enemy: "巡林闹钟", health: 20, attack: 4, rule: .training,
+              lesson: "学会出牌", briefing: "每第三回合攻击 +2。把幼龙放入现在，立即出击；护盾能抵挡伤害。", challenge: "5 回合内获胜"),
+        Stage(name: "02 · 铁皮树桩", enemy: "铁皮树桩", health: 24, attack: 4, rule: .bark,
+              lesson: "过去 · 成长破甲", briefing: "未成长单位伤害 -1；成长、未来连击和法术穿甲。把种子放入过去。", challenge: "带着成长单位获胜"),
+        Stage(name: "03 · 开合甲虫", enemy: "发条甲虫", health: 28, attack: 4, rule: .shell,
+              lesson: "未来 · 抓住破绽", briefing: "奇数回合每次受伤 -2，偶数回合无护甲。未来单位的首次翻倍攻击无视护甲。", challenge: "触发一次未来单位连击"),
+        Stage(name: "04 · 重锤哨站", enemy: "重锤闹钟", health: 32, attack: 2, rule: .charge,
+              lesson: "护盾 · 预判重击", briefing: "奇数回合攻击 2，偶数回合重击 8。提前把护盾放入未来，迎接重击。", challenge: "累计抵挡 8 点伤害"),
+        Stage(name: "05 · 缺能小径", enemy: "吸能齿轮", health: 32, attack: 4, rule: .drought,
+              lesson: "能量 · 精打细算", briefing: "回能 3；单位每次伤害 -2，法术不减伤。试试高攻击单位或能量风暴。", challenge: "出牌不超过 10 张"),
+        Stage(name: "06 · 森林总闸", enemy: "暴走钟王", health: 42, attack: 4, rule: .boss,
+              lesson: "首领 · 两阶段决战", briefing: "半血前护甲 1；进入半血时消除 4 护盾，随后攻击 7。留好护盾与爆发牌。", challenge: "剩余至少 10 点生命")
     ]
 }
 
@@ -126,20 +152,76 @@ struct BattleState: Codable {
     var log: [String] = ["时空通道已开启。选择手牌，再选择时间卡槽。"]
     var cardsPlayed = 0
     var damageBlocked = 0
+    var chargedHits: Int? = 0
+    var hardMode: Bool? = false
+    var isHard: Bool { hardMode == true }
+    var briefing: String { stage.briefing + (isHard ? "\n\n困难追加：" + stage.hardModifier : "") }
 
-    init(stageIndex: Int, deck: [CardKind]) {
+    init(stageIndex: Int, deck: [CardKind], hard: Bool = false) {
+        hardMode = hard
         self.stageIndex = min(max(stageIndex, 0), Stage.all.count - 1)
         enemyHealth = Stage.all[self.stageIndex].health
         hand = Array(deck.prefix(4))
         drawPile = Array(deck.dropFirst(4))
+        if hard && stage.rule == .training { energy = 2 }
+        log.append(briefing)
     }
     var stage: Stage { Stage.all[stageIndex] }
-    var enemyIntent: Int { stage.attack + ((turn % 3 == 0) ? 2 : 0) }
-    var baseEnergy: Int { min(5, 2 + turn) }
+    var enemyIntent: Int {
+        switch stage.rule {
+        case .charge: return turn.isMultiple(of: 2) ? 8 : 2
+        case .boss: return enemyHealth <= stage.health / 2 ? 7 : 4
+        case .training: return stage.attack + (turn.isMultiple(of: 3) ? 2 : 0)
+        default: return stage.attack
+        }
+    }
+    var baseEnergy: Int { stage.rule == .drought ? (isHard ? 2 : 3) : min(5, 2 + turn) }
+    var enemyStatus: String {
+        switch stage.rule {
+        case .training: return "本轮攻击 \(enemyIntent)"
+        case .bark: return "树皮减伤 1 · 攻击 \(enemyIntent)"
+        case .shell: return "护甲 \(turn.isMultiple(of: 2) ? 0 : 2) · 攻击 \(enemyIntent)"
+        case .charge: return "\(turn.isMultiple(of: 2) ? "重击" : "蓄力攻击") \(enemyIntent)"
+        case .drought: return "回能 \(baseEnergy) · 单位减伤 2"
+        case .boss: return enemyHealth <= stage.health / 2 ? "狂暴 · 攻击 7" : "护甲 1 · 过半血后攻击 7"
+        }
+    }
+    var challengeMet: Bool {
+        switch stage.rule {
+        case .training: return turn <= 5
+        case .bark: return field.contains { $0?.evolved == true }
+        case .shell: return (chargedHits ?? 0) > 0
+        case .charge: return damageBlocked >= 8
+        case .drought: return cardsPlayed <= 10
+        case .boss: return playerHealth >= 10
+        }
+    }
+    var stars: Int { outcome == .won ? 1 + (playerHealth >= 12 ? 1 : 0) + (challengeMet ? 1 : 0) : 0 }
+
+    private mutating func hitEnemy(_ amount: Int, evolved: Bool = false, charged: Bool = false, spell: Bool = false) -> Int {
+        var armor = 0
+        switch stage.rule {
+        case .bark: armor = (evolved || spell) ? 0 : 1
+        case .shell: armor = turn.isMultiple(of: 2) ? 0 : 2
+        case .drought: armor = spell ? 0 : 2
+        case .boss: armor = enemyHealth > stage.health / 2 ? 1 : 0
+        default: break
+        }
+        if charged && stage.rule != .drought { armor = 0 }
+        let hit = max(0, amount - armor)
+        let wasCalm = stage.rule == .boss && enemyHealth > stage.health / 2
+        enemyHealth = max(0, enemyHealth - hit)
+        if wasCalm && enemyHealth > 0 && enemyHealth <= stage.health / 2 {
+            shield = max(0, shield - 4)
+            record("钟王进入狂暴！消除 4 护盾，护甲消失，本轮起攻击 7")
+        }
+        return hit
+    }
 
     func canPlay(_ kind: CardKind, in lane: TimeLane) -> String? {
         guard outcome == .playing else { return "本局已结束" }
         guard hand.contains(kind) else { return "这张卡不在手牌中" }
+        if isHard && stage.rule == .shell && !turn.isMultiple(of: 2) && lane == .present { return "甲虫封锁现在：请在偶数回合出牌，或使用过去与未来" }
         guard energy >= kind.cost else { return "能量不足，需要 \(kind.cost) 点能量" }
         if lane == .past && !kind.isUnit { return "过去只接收成长单位，法术请放入现在或未来" }
         if kind == .rewind {
@@ -178,8 +260,8 @@ struct BattleState: Codable {
         // Active units attack first. Newly placed past/future cards must survive the enemy turn.
         for lane in TimeLane.allCases {
             guard var unit = field[lane.rawValue], unit.kind.isUnit, !unit.waiting else { continue }
-            let hit = unit.attack * (unit.charged ? 2 : 1)
-            enemyHealth = max(0, enemyHealth - hit)
+            let hit = hitEnemy(unit.attack * (unit.charged ? 2 : 1), evolved: unit.evolved, charged: unit.charged)
+            if unit.charged { chargedHits = (chargedHits ?? 0) + 1 }
             record("\(unit.name)造成 \(hit) 点伤害\(unit.charged ? " · 未来连击" : "")")
             unit.charged = false
             field[lane.rawValue] = unit
@@ -190,6 +272,9 @@ struct BattleState: Codable {
             checkOutcome()
             if outcome != .playing { return }
         }
+        if isHard && stage.rule == .charge && turn.isMultiple(of: 2) {
+            shield = max(0, shield - 2); record("碎盾重锤消除 2 护盾")
+        }
         let incoming = enemyIntent
         let blocked = min(shield, incoming)
         shield -= blocked
@@ -199,6 +284,14 @@ struct BattleState: Codable {
         checkOutcome()
         if outcome != .playing { return }
 
+        if isHard && stage.rule == .bark {
+            enemyHealth = min(stage.health, enemyHealth + 2); record("再生树皮恢复 2 生命")
+        }
+        if isHard && stage.rule == .boss && turn.isMultiple(of: 3), let unit = field[1], unit.kind.isUnit {
+            field[1] = nil
+            if hand.count < 6 { hand.append(unit.kind) } else { discard.append(unit.kind) }
+            record("时间震荡！\(unit.kind.name)退出现在，手牌满时进入弃牌堆")
+        }
         turn += 1
         energy = baseEnergy
         for lane in TimeLane.allCases {
@@ -231,8 +324,8 @@ struct BattleState: Codable {
             energy += gain
             record("能量火花 +\(gain) · 能量上限 5")
         case .surge:
-            enemyHealth = max(0, enemyHealth - 6 * multiplier)
-            record("能量风暴造成 \(6 * multiplier) 点伤害")
+            let hit = hitEnemy(6 * multiplier, spell: true)
+            record("能量风暴造成 \(hit) 点伤害")
         case .rewind:
             if let index = field.firstIndex(where: { $0?.kind.isUnit == true }), let unit = field[index] {
                 field[index] = nil
@@ -261,7 +354,13 @@ struct BattleState: Codable {
 }
 
 struct SavedGame: Codable {
-    var version = 1
+    var version = 2
+    var bestStars: [String: Int]? = [:]
+    var hardStars: [String: Int]? = [:]
+    var selectedHard: Bool? = false
+    var hardUnlocked: Bool { Set(completedStages).count == Stage.all.count }
+    var viewingHard: Bool { selectedHard == true && hardUnlocked }
+    var currentStars: [String: Int] { (viewingHard ? hardStars : bestStars) ?? [:] }
     var collection = CardKind.starter
     var deck = CardKind.starter
     var completedStages: [Int] = []
@@ -274,12 +373,14 @@ struct SavedGame: Codable {
 
     var unlockedStage: Int { min((completedStages.max() ?? -1) + 1, Stage.all.count - 1) }
     var rewards: [CardKind] {
+        guard let battle = battle, battle.outcome == .won, battle.stage.rewardMilestone, !battle.isHard,
+              !completedStages.contains(battle.stageIndex) else { return [] }
         let locked = CardKind.allCases.filter { !collection.contains($0) }
         return Array(locked.prefix(3))
     }
     mutating func startBattle() {
         guard deck.count == 6, Set(deck).count == 6, deck.allSatisfy({ collection.contains($0) }) else { return }
-        battle = BattleState(stageIndex: min(selectedStage, unlockedStage), deck: deck)
+        battle = BattleState(stageIndex: min(selectedStage, unlockedStage), deck: deck, hard: viewingHard)
     }
     /// Consuming the victory and saving the collection happen as one persisted state change.
     @discardableResult
@@ -289,8 +390,14 @@ struct SavedGame: Codable {
         if !choices.isEmpty {
             guard let reward = reward, choices.contains(reward) else { return false }
             collection.append(reward)
+        } else if reward != nil { return false }
+        var scores = (finished.isHard ? hardStars : bestStars) ?? [:]
+        scores[String(finished.stageIndex)] = max(scores[String(finished.stageIndex)] ?? 0, finished.stars)
+        if finished.isHard { hardStars = scores }
+        else {
+            bestStars = scores
+            if !completedStages.contains(finished.stageIndex) { completedStages.append(finished.stageIndex) }
         }
-        if !completedStages.contains(finished.stageIndex) { completedStages.append(finished.stageIndex) }
         victories += 1
         selectedStage = min(finished.stageIndex + 1, unlockedStage)
         battle = nil
@@ -305,13 +412,23 @@ final class GameStore {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         if let data = defaults.data(forKey: key), let decoded = try? JSONDecoder().decode(SavedGame.self, from: data),
-           decoded.version == 1,
+           (1...2).contains(decoded.version),
            decoded.deck.count == 6, Set(decoded.deck).count == 6,
            decoded.deck.allSatisfy({ decoded.collection.contains($0) }),
            (0..<Stage.all.count).contains(decoded.selectedStage),
            decoded.completedStages.allSatisfy({ (0..<Stage.all.count).contains($0) }),
            decoded.battle.map({ (0..<Stage.all.count).contains($0.stageIndex) && $0.field.count == 3 }) ?? true {
             state = decoded
+            if state.version == 1 {
+                // The prototype's later indices represented different chapters. Keep owned cards,
+                // preferences and the first clear, but do not reinterpret its active encounter.
+                state.version = 2
+                state.completedStages = state.completedStages.contains(0) ? [0] : []
+                state.selectedStage = state.completedStages.isEmpty ? 0 : 1
+                state.battle = nil
+                state.bestStars = state.completedStages.isEmpty ? [:] : ["0": 1]
+                _ = save()
+            }
         } else { state = SavedGame() }
     }
     @discardableResult

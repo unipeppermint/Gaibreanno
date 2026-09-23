@@ -1,13 +1,15 @@
 import UIKit
 
 final class ViewController: UIViewController, UIGestureRecognizerDelegate {
-    private enum Screen { case lobby, deck, library, battle, reward }
+    private enum Screen { case lobby, deck, library, battle, reward, level }
     private let store = GameStore()
     private let backdrop = GameBackdrop()
     private let scroll = UIScrollView()
     private let content = UIView()
     private var navigation = UIView()
     private var screen: Screen = .lobby
+    private var levelPage = 0
+    private var levelPageSize: Int { view.bounds.height - view.safeAreaInsets.top - view.safeAreaInsets.bottom < 700 ? 2 : 3 }
     private var selectedCard: CardKind?
     private var selectedReward: CardKind?
     private var draftDeck: [CardKind]?
@@ -71,6 +73,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         content.frame = CGRect(x: (view.bounds.width - width) / 2, y: 0, width: width, height: 0)
         let height: CGFloat
         switch screen {
+        case .level: height = buildLevels()
         case .lobby: height = buildLobby()
         case .deck: height = buildCollection(editing: true)
         case .library: height = buildCollection(editing: false)
@@ -123,8 +126,9 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         button("", CGRect(x: width - 60, y: compact ? 9 : 17, width: 42, height: 42), icon: "gearshape.fill") { [weak self] in self?.showSettings() }.accessibilityLabel = "设置"
         let stageIndex = store.state.selectedStage
         let stage = Stage.all[stageIndex]
-        let chapter = button("第 \(stageIndex + 1) 章 · \(stage.region)  ⌄", CGRect(x: 56, y: compact ? 61 : 79, width: width - 112, height: 33)) { [weak self] in self?.chooseStage() }
-        chapter.titleLabel?.font = Palette.font(14, .heavy)
+        let level = button("选择关卡 · \(store.state.viewingHard ? "困难" : "普通")  ⌄", CGRect(x: 56, y: compact ? 61 : 79, width: width - 112, height: 33)) { [weak self] in self?.chooseStage() }
+        level.accessibilityIdentifier = "chooseLevels"
+        level.titleLabel?.font = Palette.font(14, .heavy)
         let cardW = (inner - 40) / 3
         let cardH = cardW * (compact ? 1.38 : 1.45)
         let panelY: CGFloat = compact ? 103 : 128
@@ -141,8 +145,8 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         }
         let challengeY = panelY + panelH + (compact ? 10 : 14)
         let challenge = GamePanel(color: UIColor(hex: 0x22358F)); challenge.frame = CGRect(x: 16, y: challengeY, width: inner, height: compact ? 60 : 70); content.addSubview(challenge)
-        _ = art(6, CGRect(x: 5, y: 5, width: compact ? 50 : 60, height: compact ? 50 : 60), parent: challenge)
-        label("\(store.state.completedStages.contains(stageIndex) ? "再次挑战" : "下一关")  ·  已通关 \(store.state.completedStages.count)/3", CGRect(x: 77, y: 9, width: inner - 106, height: 19), size: 11, color: Palette.quiet, parent: challenge)
+        _ = art(9 + stageIndex, CGRect(x: 5, y: 5, width: compact ? 50 : 60, height: compact ? 50 : 60), parent: challenge)
+        label("\(store.state.viewingHard ? "困难挑战" : "冒险进度")  ·  已通关 \(store.state.viewingHard ? store.state.currentStars.count : store.state.completedStages.count)/\(Stage.all.count)", CGRect(x: 77, y: 9, width: inner - 106, height: 19), size: 11, color: Palette.quiet, parent: challenge)
         label(stage.name, CGRect(x: 77, y: compact ? 26 : 31, width: inner - 103, height: 29), size: 23, parent: challenge, weight: .heavy)
         let choose = UIButton(frame: challenge.bounds); choose.accessibilityLabel = "选择关卡"
         choose.addTarget(self, action: #selector(stageButtonTapped), for: .touchUpInside); challenge.addSubview(choose)
@@ -239,14 +243,17 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         let laneY = enemyY + enemyH + 14
         button("", CGRect(x: 16, y: 5, width: 42, height: 40), icon: "chevron.left") { [weak self] in self?.leaveBattle() }.accessibilityLabel = "返回大厅"
         label(battle.stage.name, CGRect(x: 64, y: 4, width: width - 128, height: 27), size: 20, align: .center, weight: .heavy)
-        label("第 \(battle.stageIndex + 1) 章 · \(battle.stage.region)", CGRect(x: 64, y: 32, width: width - 128, height: 18), size: 11, color: Palette.quiet, align: .center)
+        label("\(battle.isHard ? "困难 · " : "")\(battle.stage.lesson) · 说明 ⓘ", CGRect(x: 64, y: 32, width: width - 128, height: 18), size: 11, color: Palette.quiet, align: .center)
         button("", CGRect(x: width - 58, y: 5, width: 42, height: 40), icon: "questionmark") { [weak self] in self?.showRules() }.accessibilityLabel = "玩法说明"
+        let info = UIButton(frame: CGRect(x: 64, y: 29, width: width - 128, height: 23))
+        info.accessibilityLabel = "关卡机制与挑战"; info.accessibilityIdentifier = "encounterInfo"
+        info.addTarget(self, action: #selector(showEncounterInfo), for: .touchUpInside); content.addSubview(info)
         let enemy = GamePanel(color: UIColor(hex: 0x253991)); enemy.frame = CGRect(x: 16, y: enemyY, width: inner, height: enemyH); content.addSubview(enemy)
-        _ = art(6, CGRect(x: 7, y: 7, width: enemyH - 14, height: enemyH - 14), parent: enemy, radius: 14)
+        _ = art(9 + battle.stageIndex, CGRect(x: 7, y: 7, width: enemyH - 14, height: enemyH - 14), parent: enemy, radius: 14)
         label(battle.stage.enemy, CGRect(x: enemyH + 9, y: compact ? 6 : 11, width: inner - enemyH - 23, height: 26), size: 21, parent: enemy, weight: .heavy)
         let bar = HealthBar(current: battle.enemyHealth, maximum: battle.stage.health)
         bar.frame = CGRect(x: enemyH + 8, y: compact ? 34 : 44, width: inner - enemyH - 23, height: 23); enemy.addSubview(bar)
-        let intent = label("下回合  ⚡ \(battle.enemyIntent)", CGRect(x: enemyH + 8, y: compact ? 62 : 76, width: inner - enemyH - 23, height: compact ? 25 : 33), size: 16, color: UIColor(hex: 0xFFF0C1), align: .center, parent: enemy, weight: .heavy)
+        let intent = label(battle.enemyStatus, CGRect(x: enemyH + 8, y: compact ? 62 : 76, width: inner - enemyH - 23, height: compact ? 25 : 33), size: 12, color: UIColor(hex: 0xFFF0C1), align: .center, parent: enemy, weight: .heavy)
         intent.backgroundColor = UIColor(hex: 0xB2365D); intent.layer.cornerRadius = 10; intent.clipsToBounds = true
         let laneW = (inner - 16) / 3
         let laneH = compact ? min(180, laneW * 1.35 + 57) : laneW * 1.35 + 57
@@ -397,9 +404,10 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     private func buildReward() -> CGFloat {
         guard let battle = store.state.battle, battle.outcome == .won else { screen = .lobby; return buildLobby() }
         let choices = store.state.rewards
-        let star = UILabel(frame: CGRect(x: 16, y: 6, width: inner, height: 41)); star.text = "✦  ★  ✦"
+        if choices.isEmpty { return buildClearSummary(battle) }
+        let star = UILabel(frame: CGRect(x: 16, y: 6, width: inner, height: 41)); star.text = String(repeating: "★ ", count: battle.stars) + String(repeating: "☆ ", count: 3 - battle.stars)
         star.font = Palette.font(31, .black); star.textColor = Palette.yellow; star.textAlignment = .center; content.addSubview(star)
-        title("胜利！", frame: CGRect(x: 20, y: 48, width: width - 40, height: 86), size: 71)
+        title(battle.stageIndex == Stage.all.count - 1 ? "六关通关！" : "胜利！", frame: CGRect(x: 20, y: 48, width: width - 40, height: 86), size: battle.stageIndex == Stage.all.count - 1 ? 48 : 71)
         label(choices.isEmpty ? "全部卡牌已收集，再战刷新纪录" : "选择一张加入卡组", CGRect(x: 36, y: 139, width: width - 72, height: 34), size: 20, align: .center, weight: .heavy)
         let rewards = choices.isEmpty ? Array(store.state.deck.prefix(3)) : choices
         if selectedReward == nil { selectedReward = rewards.first }
@@ -422,11 +430,12 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         label(selected.name, CGRect(x: 99, y: 11, width: inner - 120, height: 29), size: 23, parent: panel, weight: .heavy)
         label(selected.isUnit ? "放入过去，下回合成长" : selected.keyword, CGRect(x: 99, y: 44, width: inner - 120, height: 22), size: 13, parent: panel)
         label("\(selected.cost) 点能量 · \(selected.isUnit ? "成长型" : "法术型")", CGRect(x: 99, y: 69, width: inner - 120, height: 17), size: 11, color: selected.tint, parent: panel)
-        label("\(battle.turn) 回合获胜   ·   抵挡 \(battle.damageBlocked) 点伤害", CGRect(x: 16, y: detailY + 109, width: inner, height: 23), size: 13, color: Palette.quiet, align: .center)
-        let claim = button(choices.isEmpty ? "完成挑战" : "加入卡组", CGRect(x: 18, y: detailY + 147, width: inner - 4, height: 58), primary: true) { [weak self] in self?.claimReward() }
+        let results = label("\(battle.turn) 回合 · 生命 \(battle.playerHealth) · 抵挡 \(battle.damageBlocked)\n\(battle.challengeMet ? "✓" : "○") \(battle.stage.challenge)", CGRect(x: 16, y: detailY + 104, width: inner, height: 46), size: 13, color: Palette.quiet, align: .center)
+        results.numberOfLines = 2
+        let claim = button(choices.isEmpty ? "完成挑战" : "加入卡组", CGRect(x: 18, y: detailY + 161, width: inner - 4, height: 58), primary: true) { [weak self] in self?.claimReward() }
         claim.accessibilityIdentifier = "claimReward"
-        button("查看卡牌效果", CGRect(x: 80, y: detailY + 225, width: width - 160, height: 41)) { [weak self] in self?.showCardDetail(selected) }
-        return detailY + 286
+        button("查看卡牌效果", CGRect(x: 80, y: detailY + 235, width: width - 160, height: 41)) { [weak self] in self?.showCardDetail(selected) }
+        return detailY + 296
     }
     private func claimReward() {
         guard store.state.battle?.outcome == .won else { return }
@@ -442,19 +451,24 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         presentSheet(sheet)
     }
     private func completeReward(_ reward: CardKind?, replacing old: CardKind?) {
+        let completedFinal = store.state.battle?.stageIndex == Stage.all.count - 1
         guard store.state.claimVictory(reward) else { return }
         if let reward = reward, let old = old, let i = store.state.deck.firstIndex(of: old) { store.state.deck[i] = reward }
-        store.save(); show(.lobby)
-        toast(reward.map { "\($0.name)已解锁！" } ?? "挑战完成！全部卡牌已收集")
+        store.save()
+        if completedFinal { chooseStage() } else { show(.lobby) }
+        toast(reward.map { "\($0.name)已解锁！" } ?? (store.state.hardUnlocked ? "星级已保存！可在选关页切换难度" : "通关纪录已保存！"))
     }
 
     private func startOrResume() {
         if store.state.battle?.outcome == .won { showVictory(); return }
-        if store.state.battle == nil || store.state.battle?.outcome == .lost { store.state.startBattle(); store.save() }
+        let isNewBattle = store.state.battle == nil || store.state.battle?.outcome == .lost
+        if isNewBattle { store.state.startBattle(); store.save() }
         show(.battle)
         if !store.state.hasSeenRules {
             store.state.hasSeenRules = true; store.save()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.showRules() }
+        } else if isNewBattle {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.showEncounterInfo() }
         }
     }
     private func leaveBattle() {
@@ -462,30 +476,108 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         store.save(); show(.lobby)
         toast("牌局已保存，可随时继续")
     }
-    private func chooseStage() {
-        let alert = UIAlertController(title: "选择关卡", message: "每次通关解锁下一关和一张新卡", preferredStyle: .actionSheet)
-        for (i, stage) in Stage.all.enumerated() {
-            let action = UIAlertAction(title: "\(i > store.state.unlockedStage ? "🔒 " : store.state.completedStages.contains(i) ? "✓ " : "")第 \(i + 1) 章 · \(stage.name)", style: .default) { [weak self] _ in
-                guard let self = self else { return }
-                if self.store.state.battle != nil {
-                    let confirm = UIAlertController(title: "开始新的牌局？", message: "当前牌局进度将被替换，已获得的卡牌和通关记录会保留。", preferredStyle: .alert)
-                    confirm.addAction(UIAlertAction(title: "保留当前牌局", style: .cancel))
-                    confirm.addAction(UIAlertAction(title: "切换关卡", style: .destructive) { [weak self] _ in self?.selectStage(i) })
-                    self.present(confirm, animated: true)
-                } else { self.selectStage(i) }
-            }
-            action.isEnabled = i <= store.state.unlockedStage
-            alert.addAction(action)
+    private func chooseStage() { levelPage = store.state.selectedStage / levelPageSize; show(.level) }
+
+    private func buildLevels() -> CGFloat {
+        button("返回", CGRect(x: 16, y: 8, width: 62, height: 38)) { [weak self] in self?.show(.lobby) }
+        title("选择关卡", frame: CGRect(x: 80, y: 4, width: width - 160, height: 45), size: 30)
+        let total = store.state.currentStars.values.reduce(0, +)
+        label("\(store.state.viewingHard ? "困难" : "普通") · \(store.state.viewingHard ? store.state.currentStars.count : store.state.completedStages.count)/6 关 · ★ \(total)/18", CGRect(x: 16, y: 61, width: inner, height: 25), size: 16, color: Palette.yellow, align: .center)
+        let mode = button(store.state.hardUnlocked ? (store.state.viewingHard ? "切换普通 · 回顾星级" : "切换困难 · 全新规则") : "困难挑战 · 通关六关解锁", CGRect(x: 58, y: 89, width: width - 116, height: 25)) { [weak self] in self?.switchDifficulty() }
+        mode.titleLabel?.font = Palette.font(12, .bold)
+        mode.accessibilityIdentifier = "difficultySwitch"
+        let pageCount = (Stage.all.count + levelPageSize - 1) / levelPageSize
+        levelPage = min(levelPage, pageCount - 1)
+        let previous = button("上一页", CGRect(x: 16, y: 119, width: 85, height: 31)) { [weak self] in
+            guard let self = self else { return }; self.levelPage -= 1; self.redraw()
         }
-        alert.addAction(UIAlertAction(title: "取消", style: .cancel)); presentSheet(alert)
+        previous.isEnabled = levelPage > 0; previous.alpha = previous.isEnabled ? 1 : 0.4
+        previous.accessibilityIdentifier = "level.previous"
+        label("关卡 \(levelPage * levelPageSize + 1)–\(min(Stage.all.count, (levelPage + 1) * levelPageSize)) / 6", CGRect(x: 104, y: 122, width: width - 208, height: 23), size: 14, align: .center)
+        let next = button("下一页", CGRect(x: width - 101, y: 119, width: 85, height: 31)) { [weak self] in
+            guard let self = self else { return }; self.levelPage += 1; self.redraw()
+        }
+        next.isEnabled = levelPage + 1 < pageCount; next.alpha = next.isEnabled ? 1 : 0.4
+        next.accessibilityIdentifier = "level.next"
+        let start = levelPage * levelPageSize
+        for i in start..<min(Stage.all.count, start + levelPageSize) {
+            let stage = Stage.all[i]
+            let unlocked = i <= store.state.unlockedStage
+            let y = CGFloat(i - start) * 197 + 163
+            let colors: [UInt32] = [0x20377F, 0x215B54, 0x523D88, 0x773954, 0x205B77, 0x653370]
+            let panel = GamePanel(color: UIColor(hex: colors[i]))
+            panel.frame = CGRect(x: 16, y: y, width: inner, height: 182); content.addSubview(panel)
+            _ = art(9 + i, CGRect(x: 10, y: 12, width: 40, height: 45), parent: panel, radius: 9)
+            label(stage.name, CGRect(x: 58, y: 10, width: inner - 70, height: 29), size: 21, parent: panel, weight: .heavy)
+            let score = store.state.currentStars[String(i)] ?? 0
+            label("\(stage.lesson)  ·  \(String(repeating: "★", count: score))\(String(repeating: "☆", count: 3 - score))", CGRect(x: 58, y: 41, width: inner - 70, height: 20), size: 12, color: Palette.yellow, parent: panel)
+            let rule = label(store.state.viewingHard ? stage.hardModifier : stage.briefing, CGRect(x: 14, y: 69, width: inner - 28, height: 46), size: 13, color: Palette.quiet, parent: panel)
+            rule.numberOfLines = 2
+            label("挑战：\(stage.challenge)", CGRect(x: 14, y: 118, width: inner - 28, height: 20), size: 12, parent: panel)
+            let status = store.state.viewingHard ? "独立星级 · 不重复发卡" : (store.state.completedStages.contains(i) ? "已通关 · 可刷新星级" : (stage.rewardMilestone ? "首通解锁新卡" : "首通解锁下一关"))
+            label(status, CGRect(x: 14, y: 149, width: inner - 158, height: 20), size: 12, color: Palette.cyan, parent: panel)
+            let select = button(unlocked ? (store.state.currentStars[String(i)] != nil ? "再次挑战" : "选择关卡") : "尚未解锁", CGRect(x: inner - 138, y: 139, width: 124, height: 34), primary: unlocked, parent: panel) { [weak self] in
+                self?.requestStage(i)
+            }
+            select.isEnabled = unlocked; select.alpha = unlocked ? 1 : 0.45
+            select.accessibilityIdentifier = "stage.\(i)"
+        }
+        return 165 + CGFloat(levelPageSize) * 197
+    }
+    private func switchDifficulty() {
+        guard store.state.hardUnlocked else {
+            let alert = UIAlertController(title: "困难挑战尚未解锁", message: "通关全部 6 关即可解锁。每关追加独立规则，困难星级与普通星级分别保存。", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "继续冒险", style: .default)); present(alert, animated: true); return
+        }
+        let change = { [weak self] in
+            guard let self = self else { return }
+            self.store.state.selectedHard = !self.store.state.viewingHard
+            self.store.state.battle = nil
+            self.store.save(); self.redraw()
+        }
+        if store.state.battle != nil {
+            let alert = UIAlertController(title: "切换难度？", message: "当前牌局将结束，已获得的卡牌和两种难度的星级会保留。", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "保留牌局", style: .cancel))
+            alert.addAction(UIAlertAction(title: "切换难度", style: .destructive) { _ in change() })
+            present(alert, animated: true)
+        } else { change() }
+    }
+    private func requestStage(_ index: Int) {
+        guard index <= store.state.unlockedStage else { return }
+        if store.state.battle != nil {
+            let confirm = UIAlertController(title: "开始新的牌局？", message: "当前牌局进度将被替换，已获得的卡牌和通关记录会保留。", preferredStyle: .alert)
+            confirm.addAction(UIAlertAction(title: "保留当前牌局", style: .cancel))
+            confirm.addAction(UIAlertAction(title: "切换关卡", style: .destructive) { [weak self] _ in self?.selectStage(index) })
+            present(confirm, animated: true)
+        } else { selectStage(index) }
+    }
+    @objc private func showEncounterInfo() {
+        guard let battle = store.state.battle else { return }
+        let text = "\(battle.briefing)\n\n胜利条件：击败敌人。\n三星条件：通关；剩余生命至少 12；\(battle.stage.challenge)。\n\n\(battle.isHard ? "困难星级单独记录，不重复发卡。" : battle.stageIndex == 5 ? "通关六关后解锁困难挑战。" : battle.stage.rewardMilestone ? "首次通关可选择一张新卡。" : "首次通关解锁下一关。")"
+        let alert = UIAlertController(title: battle.stage.name, message: text, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "开始出牌", style: .default)); present(alert, animated: true)
+    }
+    private func buildClearSummary(_ battle: BattleState) -> CGFloat {
+        let finished = battle.stageIndex == Stage.all.count - 1
+        let compact = scroll.bounds.height < 700
+        title(battle.isHard ? "挑战成功！" : finished ? "六关通关！" : "胜利！", frame: CGRect(x: 20, y: compact ? 12 : 45, width: width - 40, height: 86), size: 52)
+        label(String(repeating: "★ ", count: battle.stars) + String(repeating: "☆ ", count: 3 - battle.stars), CGRect(x: 16, y: compact ? 100 : 146, width: inner, height: 50), size: 38, color: Palette.yellow, align: .center)
+        _ = art(9 + battle.stageIndex, CGRect(x: (width - 110) / 2, y: compact ? 165 : 222, width: 110, height: 110), radius: 25)
+        label((battle.isHard ? "困难 · " : "") + battle.stage.name, CGRect(x: 16, y: compact ? 287 : 384, width: inner, height: 32), size: 23, align: .center)
+        let results = "✓ 击败敌人\n\(battle.playerHealth >= 12 ? "✓" : "○") 生命至少 12 · 本次 \(battle.playerHealth)\n\(battle.challengeMet ? "✓" : "○") \(battle.stage.challenge)\n\n\(battle.turn) 回合 · 抵挡 \(battle.damageBlocked) 点伤害"
+        let stats = label(results, CGRect(x: 28, y: compact ? 330 : 433, width: width - 56, height: 146), size: 16, align: .center)
+        stats.numberOfLines = 6
+        let claim = button(finished ? (battle.isHard ? "回顾困难星级" : "完成冒险 · 解锁困难") : "完成挑战", CGRect(x: 20, y: compact ? 501 : 606, width: width - 40, height: 56), primary: true) { [weak self] in self?.claimReward() }
+        claim.accessibilityIdentifier = "claimReward"
+        return compact ? 582 : 690
     }
     private func selectStage(_ index: Int) {
-        store.state.selectedStage = index; store.state.battle = nil; store.save(); redraw()
+        store.state.selectedStage = index; store.state.battle = nil; store.save(); show(.lobby)
     }
     private func showDefeatOverlay(afterLayout: Bool) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self, self.screen == .battle, self.store.state.battle?.outcome == .lost, self.presentedViewController == nil else { return }
-            let alert = UIAlertController(title: "时间线失守", message: "试试让种子炮台在过去成长，并及时使用护盾抵挡攻击。卡组与收集进度不会丢失。", preferredStyle: .alert)
+            let alert = UIAlertController(title: "时间线失守", message: self.store.state.battle?.briefing, preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "重新挑战", style: .default) { [weak self] _ in
                 guard let self = self else { return }
                 self.store.state.startBattle(); self.store.save(); self.redraw()
@@ -498,7 +590,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         }
     }
     private func showRules() {
-        let message = "目标：在生命耗尽前击败敌人。\n\n① 选择手牌，再点击时间卡槽，也可直接拖动。\n\n过去：仅限单位，等待一回合后永久攻击 +2。\n现在：单位本回合出击，法术立即生效。\n未来：等待一回合，单位首次攻击或法术效果翻倍。\n\n结束回合：己方出击 → 敌方攻击 → 恢复能量 → 等待卡激活 → 抽 2 张牌。每 3 回合敌人攻击 +2。\n\n长按卡牌查看效果。护盾可保留，能量上限 5，手牌上限 6。"
+        let message = "目标：在生命耗尽前击败敌人。\n\n① 选择手牌，再点击时间卡槽，也可直接拖动。\n\n过去：仅限单位，等待一回合后永久攻击 +2。\n现在：单位本回合出击，法术立即生效。\n未来：等待一回合，单位首次攻击或法术效果翻倍。\n\n结束回合：己方出击 → 敌方攻击 → 恢复能量 → 等待卡激活 → 抽 2 张牌。敌人机制与本轮攻击见战场顶部；点击关卡说明查看详情。\n\n长按卡牌查看效果。护盾可保留，能量上限 5，手牌上限 6。"
         let alert = UIAlertController(title: "掌握时间，打出连锁", message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "开始出牌", style: .default))
         present(alert, animated: true)
