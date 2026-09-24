@@ -19,6 +19,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     private var selectedDeckSlot: Int?
     private var deckMessage: String?
     private var libraryIndex = 0
+    private var deckApproach: DeckApproach = .guardHP
     private var lanes: [LaneView] = []
     private var ghost: CardView?
     private var lastSize = CGSize.zero
@@ -68,7 +69,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     }
     private func redraw(preserveScroll: Bool = false) {
         let offset = scroll.contentOffset
-        scroll.showsVerticalScrollIndicator = screen == .contracts || screen == .reward
+        scroll.showsVerticalScrollIndicator = [.contracts, .reward, .deck, .library].contains(screen)
         backdrop.frame = view.bounds
         let hasNav = screen == .lobby || screen == .deck || screen == .library || screen == .contracts
         let navHeight: CGFloat = hasNav ? 72 : 0
@@ -232,7 +233,8 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         let cardH = cardW * 1.38
         let gridWidth = cardW * 3 + 24
         let gridX = (width - gridWidth) / 2
-        let gridY: CGFloat = 105
+        let strategyHeight = buildDeckStrategy(current, y: 105)
+        let gridY: CGFloat = 105 + strategyHeight + 16
         for (i, kind) in current.enumerated() {
             let card = CardView(kind)
             card.frame = CGRect(x: gridX + CGFloat(i % 3) * (cardW + 12), y: gridY + CGFloat(i / 3) * (cardH + 10), width: cardW, height: cardH)
@@ -240,7 +242,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
             card.accessibilityIdentifier = "deck.slot.\(i)"
             card.accessibilityHint = "Tap to choose a card to replace. Hold for details."
             card.onTap = { [weak self] in
-                self?.selectedDeckSlot = i; self?.deckMessage = nil; self?.feedback(); self?.redraw()
+                self?.selectedDeckSlot = i; self?.deckMessage = nil; self?.feedback(); self?.redraw(preserveScroll: true)
             }
             addDetailsGesture(card); content.addSubview(card)
         }
@@ -289,7 +291,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         let old = draft[slot]
         draft[slot] = kind; draftDeck = draft
         deckMessage = "\(old.name) → \(kind.name) · Unsaved"
-        feedback(); redraw()
+        feedback(); redraw(preserveScroll: true)
     }
 
     private func buildLibrary() -> CGFloat {
@@ -306,7 +308,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         progress.progress = Float(store.state.collection.count) / Float(cards.count)
         progress.accessibilityLabel = "Card collection progress"; content.addSubview(progress)
         let heroY: CGFloat = 106
-        let cardW: CGFloat = compact ? 116 : 145
+        let cardW: CGFloat = compact ? 106 : 124
         let cardH = cardW * 1.4
         let card = CardView(kind)
         card.frame = CGRect(x: 22, y: heroY, width: cardW, height: cardH)
@@ -320,15 +322,12 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         let acquisition = label(kind.acquisition, CGRect(x: infoX, y: heroY + 100, width: infoW, height: cardH - 98), size: 12, color: Palette.quiet, weight: .medium)
         acquisition.numberOfLines = 0
         let detailY = heroY + cardH + 14
-        label("Card Effect", CGRect(x: 22, y: detailY, width: inner, height: 21), size: 14, color: Palette.cyan)
+        label("Card Effect · \(kind.tacticalRole)", CGRect(x: 22, y: detailY, width: inner - 12, height: 21), size: 14, color: Palette.cyan)
         let description = label(kind.detail, CGRect(x: 22, y: detailY + 24, width: width - 44, height: compact ? 57 : 65), size: 12, weight: .medium)
         description.numberOfLines = 0
         let tipY = detailY + (compact ? 87 : 95)
-        let tip = GamePanel(color: UIColor(hex: 0x49347B)); tip.frame = CGRect(x: 16, y: tipY, width: inner, height: 82); content.addSubview(tip)
-        label("Deck Tip", CGRect(x: 12, y: 7, width: inner - 24, height: 20), size: 13, color: Palette.yellow, parent: tip)
-        let pairing = label(kind.pairingTip, CGRect(x: 12, y: 29, width: inner - 24, height: 46), size: 12, parent: tip, weight: .medium)
-        pairing.numberOfLines = 3
-        let shelfY = tipY + 95
+        let tipHeight = buildCardTradeoff(kind, y: tipY)
+        let shelfY = tipY + tipHeight + 14
         let thumbW = min(40, (inner - 32) / CGFloat(cards.count))
         let shelfW = CGFloat(cards.count) * thumbW + CGFloat(cards.count - 1) * 4
         for (i, item) in cards.enumerated() {
@@ -1008,5 +1007,66 @@ private extension ViewController {
         let text = "Commit 25, 50 or 100 gold coins to a three-battle run. Choose a risk level: higher risk adds enemy damage and raises payouts. Ruthless starts at 16 HP.\n\nWin a round to bank its total payout, including your stake, or risk it all on the next round. A defeat or abandonment pays zero. The third win must be banked. Payouts are rounded down to whole gold coins.\n\nHealth carries over. Before continuing, choose +6 HP (up to 20) or 8 starting shield. Cards and energy reset. Your deck is locked for the run.\n\nOverdrive trades 3 HP for 2 energy once per turn, up to 5 energy. It cannot be used at 3 HP or less. Enemy attacks are visible; combat has no hidden dice rolls.\n\nCampaign progress is separate. Gold cannot be bought or redeemed. If your balance falls below 25, claim a free 100-gold refill after ending the contract."
         let alert = UIAlertController(title: "Fate Contracts", message: text, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Got It", style: .default)); present(alert, animated: true)
+    }
+}
+
+private extension ViewController {
+    @discardableResult
+    func buildDeckStrategy(_ deck: [CardKind], y: CGFloat) -> CGFloat {
+        let panel = GamePanel(color: UIColor(hex: 0x403879))
+        panel.frame = CGRect(x: 16, y: y, width: inner, height: 208); content.addSubview(panel)
+        label("YOUR EDGE", CGRect(x: 14, y: 10, width: inner - 28, height: 20), size: 13, color: Palette.yellow, parent: panel)
+        label("6-card profile", CGRect(x: inner - 132, y: 11, width: 118, height: 18), size: 10, color: Palette.quiet, align: .right, parent: panel)
+        let groups: [(String, [CardKind], UIColor)] = [
+            ("ATTACK", [.seed, .dragon, .oak, .elder, .surge], UIColor(hex: 0xFFB36B)),
+            ("COVER", [.shield, .guardian], Palette.cyan),
+            ("FLEX", [.spark, .rewind], UIColor(hex: 0xDCACFF))
+        ]
+        let column = (inner - 28) / 3
+        for (i, group) in groups.enumerated() {
+            let count = deck.filter { group.1.contains($0) }.count
+            let x = 14 + CGFloat(i) * column
+            label("\(count)", CGRect(x: x, y: 35, width: column, height: 28), size: 25, color: group.2, align: .center, parent: panel, weight: .heavy)
+            label(group.0, CGRect(x: x, y: 64, width: column, height: 16), size: 9, color: Palette.quiet, align: .center, parent: panel)
+        }
+        let gap: CGFloat = 8
+        let optionWidth = (inner - 28 - gap * 2) / 3
+        for approach in DeckApproach.allCases {
+            let option = button(approach.title, CGRect(x: 14 + CGFloat(approach.rawValue) * (optionWidth + gap), y: 92, width: optionWidth, height: 33), primary: approach == deckApproach, parent: panel) { [weak self] in
+                guard let self = self else { return }
+                self.deckApproach = approach; self.feedback(); self.redraw(preserveScroll: true)
+            }
+            option.titleLabel?.font = Palette.font(13, .heavy)
+            option.accessibilityIdentifier = "deck.approach.\(approach.rawValue)"
+            option.accessibilityTraits = approach == deckApproach ? [.button, .selected] : .button
+            option.accessibilityHint = "Show a tactical read of the current deck."
+        }
+        let advice = label(deckApproach.advice(for: deck), CGRect(x: 14, y: 139, width: inner - 28, height: 55), size: 12, parent: panel, weight: .medium)
+        advice.numberOfLines = 3
+        advice.accessibilityIdentifier = "deck.strategyAdvice"
+        return panel.bounds.height
+    }
+
+    @discardableResult
+    func buildCardTradeoff(_ kind: CardKind, y: CGFloat) -> CGFloat {
+        let panel = GamePanel(color: UIColor(hex: 0x49347B))
+        panel.frame = CGRect(x: 16, y: y, width: inner, height: 204); content.addSubview(panel)
+        label("RISK / REWARD", CGRect(x: 14, y: 10, width: inner - 28, height: 20), size: 13, color: Palette.yellow, parent: panel)
+        let col = (inner - 28) / 2
+        label("PRESENT · ACT NOW", CGRect(x: 14, y: 42, width: col, height: 17), size: 10, color: Palette.cyan, align: .center, parent: panel)
+        label(kind == .rewind ? "FUTURE · UNAVAILABLE" : "FUTURE · WAIT A TURN", CGRect(x: 14 + col, y: 42, width: col, height: 17), size: 10, color: UIColor(hex: 0xDCACFF), align: .center, parent: panel)
+        label(kind.immediatePayoff, CGRect(x: 14, y: 64, width: col, height: 29), size: 21, color: Palette.cyan, align: .center, parent: panel, weight: .heavy)
+        label(kind.delayedPayoff, CGRect(x: 14 + col, y: 64, width: col, height: 29), size: 21, color: Palette.yellow, align: .center, parent: panel, weight: .heavy)
+        let divider = UIView(frame: CGRect(x: inner / 2, y: 44, width: 1, height: 44))
+        divider.backgroundColor = Palette.quiet.withAlphaComponent(0.3); panel.addSubview(divider)
+        let tradeoff = label(kind.tradeoff, CGRect(x: 14, y: 104, width: inner - 28, height: 53), size: 12, parent: panel, weight: .medium)
+        tradeoff.numberOfLines = 3
+        tradeoff.accessibilityIdentifier = "library.tradeoff"
+        button("Pairing Tip", CGRect(x: 14, y: 166, width: inner - 28, height: 28), parent: panel) { [weak self] in
+            guard let self = self else { return }
+            let alert = UIAlertController(title: kind.name, message: kind.pairingTip, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "Got It", style: .default)); self.present(alert, animated: true)
+        }.accessibilityIdentifier = "library.pairingTip"
+        return panel.bounds.height
     }
 }
