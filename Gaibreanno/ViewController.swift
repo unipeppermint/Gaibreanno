@@ -183,18 +183,21 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         navigation = UIView(frame: CGRect(x: (view.bounds.width - width) / 2, y: view.bounds.height - view.safeAreaInsets.bottom - 68, width: width, height: 68 + view.safeAreaInsets.bottom))
         navigation.backgroundColor = UIColor(hex: 0x0D164F)
         let line = UIView(frame: CGRect(x: 0, y: 0, width: width, height: 1)); line.backgroundColor = UIColor(hex: 0x4459A7); navigation.addSubview(line)
-        let titles = ["Adventure", "Contracts", "Deck", "Collection"], icons = ["mountain.2.fill", "suit.spade.fill", "rectangle.on.rectangle.angled", "book.closed.fill"]
+        let titles = ["Adventure", "Contracts", "Deck", "Collection"]
+        let icons = [UIImage(systemName: "mountain.2.fill"), GoldCoin.stackIcon,
+                     UIImage(systemName: "rectangle.on.rectangle.angled"), UIImage(systemName: "book.closed.fill")]
         let pages: [Screen] = [.lobby, .contracts, .deck, .library]
         for i in 0..<4 {
             let tab = UIButton(frame: CGRect(x: CGFloat(i) * width / 4, y: 1, width: width / 4, height: 67))
             let active = screen == pages[i]
+            let accent = pages[i] == .contracts ? Palette.yellow : Palette.cyan
             if active {
                 tab.backgroundColor = UIColor(hex: 0x213C9A)
-                let glow = UIView(frame: CGRect(x: 23, y: 0, width: width / 4 - 46, height: 3)); glow.backgroundColor = Palette.cyan; tab.addSubview(glow)
+                let glow = UIView(frame: CGRect(x: 23, y: 0, width: width / 4 - 46, height: 3)); glow.backgroundColor = accent; tab.addSubview(glow)
             }
-            let iv = UIImageView(image: UIImage(systemName: icons[i]) ?? UIImage(systemName: "map.fill")); iv.tintColor = active ? Palette.cyan : Palette.quiet
+            let iv = UIImageView(image: icons[i] ?? UIImage(systemName: "map.fill")); iv.tintColor = active ? accent : Palette.quiet
             iv.contentMode = .scaleAspectFit; iv.frame = CGRect(x: tab.bounds.midX - 13, y: 9, width: 26, height: 25); tab.addSubview(iv)
-            label(titles[i], CGRect(x: 0, y: 39, width: tab.bounds.width, height: 21), size: 13, color: active ? .white : Palette.quiet, align: .center, parent: tab)
+            label(titles[i], CGRect(x: 0, y: 39, width: tab.bounds.width, height: 21), size: 13, color: active ? (pages[i] == .contracts ? accent : .white) : Palette.quiet, align: .center, parent: tab)
             tab.tag = i; tab.addTarget(self, action: #selector(tabTapped(_:)), for: .touchUpInside)
             tab.accessibilityLabel = titles[i]; tab.accessibilityTraits = active ? [.button, .selected] : .button
             tab.accessibilityIdentifier = "tab.\(i)"

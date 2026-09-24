@@ -22,6 +22,26 @@ enum Palette {
 
 /// Shared, resolution-independent gold coin for balances, stakes and payouts.
 enum GoldCoin {
+    static let stackIcon = UIGraphicsImageRenderer(size: CGSize(width: 28, height: 26)).image { _ in
+        UIColor.white.setStroke()
+        // Two stacks share the simple outline weight used by the other tab icons.
+        for (x, top, count) in [(CGFloat(1.5), CGFloat(12), 2), (CGFloat(13.5), CGFloat(3), 4)] {
+            for level in (0..<count).reversed() {
+                let y = top + CGFloat(level) * 4
+                let rim = UIBezierPath()
+                rim.move(to: CGPoint(x: x, y: y + 2.5))
+                rim.addLine(to: CGPoint(x: x, y: y + 6))
+                rim.addCurve(to: CGPoint(x: x + 12, y: y + 6),
+                             controlPoint1: CGPoint(x: x, y: y + 10),
+                             controlPoint2: CGPoint(x: x + 12, y: y + 10))
+                rim.addLine(to: CGPoint(x: x + 12, y: y + 2.5))
+                rim.lineWidth = 1.6; rim.lineCapStyle = .round; rim.stroke()
+            }
+            let face = UIBezierPath(ovalIn: CGRect(x: x, y: top, width: 12, height: 5))
+            face.lineWidth = 1.6; face.stroke()
+        }
+    }.withRenderingMode(.alwaysTemplate)
+
     private static let image = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 40)).image { renderer in
         let context = renderer.cgContext
         UIColor(hex: 0x9E570C).setFill()
