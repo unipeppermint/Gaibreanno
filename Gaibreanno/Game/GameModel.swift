@@ -39,6 +39,22 @@ enum CardKind: String, Codable, CaseIterable {
         }
     }
     var isUnit: Bool { [.seed, .dragon, .guardian, .oak, .elder].contains(self) }
+    var acquisition: String {
+        CardKind.starter.contains(self) ? "初始卡牌，开始冒险即可获得。" : "普通第 2、4、6 关首次通关时，可从未拥有的卡牌中选择。"
+    }
+    var pairingTip: String {
+        switch self {
+        case .seed: return "放入过去持续成长，配合时间护盾撑过等待回合。"
+        case .dragon: return "低费用适合开局放入现在，也能在未来抓住甲虫的破绽。"
+        case .shield: return "重锤来袭前放入未来；生命危险时在现在立即使用。"
+        case .rewind: return "召回最左侧单位腾出卡槽，再部署高攻击的新卡；记得预留费用。"
+        case .spark: return "先补能，再部署高费单位；缺能关也能用它突破回能限制。"
+        case .guardian: return "配合时间护盾持续防守，为过去的高攻单位争取成长时间。"
+        case .oak: return "高攻击更容易打穿单位减伤；在未来蓄力可形成一次爆发。"
+        case .elder: return "在过去成长为主力输出，搭配低费护盾与火花稳定开局。"
+        case .surge: return "搭配卫士争取等待时间，再于未来释放双倍伤害；缺能关法术不受单位减伤影响。"
+        }
+    }
     var attack: Int {
         switch self {
         case .seed, .dragon: return 2

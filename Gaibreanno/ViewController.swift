@@ -13,6 +13,9 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     private var selectedCard: CardKind?
     private var selectedReward: CardKind?
     private var draftDeck: [CardKind]?
+    private var selectedDeckSlot: Int?
+    private var deckMessage: String?
+    private var libraryIndex = 0
     private var lanes: [LaneView] = []
     private var ghost: CardView?
     private var lastSize = CGSize.zero
@@ -54,7 +57,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         toastView?.removeFromSuperview()
         toastGeneration += 1
         selectedCard = nil
-        if destination == .deck { draftDeck = store.state.deck }
+        if destination == .deck { draftDeck = store.state.deck; selectedDeckSlot = nil; deckMessage = nil }
         screen = destination
         feedback()
         redraw()
@@ -76,8 +79,8 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         case .settings: height = buildSettings()
         case .level: height = buildLevels()
         case .lobby: height = buildLobby()
-        case .deck: height = buildCollection(editing: true)
-        case .library: height = buildCollection(editing: false)
+        case .deck: height = buildDeckWorkshop()
+        case .library: height = buildLibrary()
         case .battle: height = buildBattle()
         case .reward: height = buildReward()
         }
@@ -183,57 +186,160 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         }
         view.addSubview(navigation)
     }
-    @objc private func tabTapped(_ sender: UIButton) { show([.lobby, .deck, .library][sender.tag]) }
-
-    private func buildCollection(editing: Bool) -> CGFloat {
-        title(editing ? "我的卡组" : "时空图鉴", frame: CGRect(x: 16, y: 6, width: inner, height: 57), size: 38)
-        let cards = editing ? store.state.collection : CardKind.allCases
-        let current = draftDeck ?? store.state.deck
-        label(editing ? "选择 6 张卡牌 · 长按查看效果" : "收集 \(store.state.collection.count) / \(CardKind.allCases.count) · 通关解锁新卡", CGRect(x: 16, y: 68, width: inner, height: 25), size: 13, color: Palette.quiet, align: .center)
-        if editing {
-            label("已选 \(current.count) / 6", CGRect(x: 16, y: 101, width: inner, height: 23), size: 17, color: current.count == 6 ? Palette.green : Palette.yellow, align: .center)
-        }
-        let cardW = (inner - 20) / 3, cardH = cardW * 1.49
-        let gridY: CGFloat = editing ? 141 : 111
-        for (i, kind) in cards.enumerated() {
-            let card = CardView(kind)
-            card.frame = CGRect(x: 16 + CGFloat(i % 3) * (cardW + 10), y: gridY + CGFloat(i / 3) * (cardH + 22), width: cardW, height: cardH)
-            card.selectedCard = editing && current.contains(kind)
-            card.locked = !store.state.collection.contains(kind)
-            card.accessibilityIdentifier = "collection.\(kind.rawValue)"
-            card.onTap = { [weak self] in
+    @objc private func tabTapped(_ sender: UIButton) {
+        let destination: Screen = [.lobby, .deck, .library][sender.tag]
+        guard destination != screen else { return }
+        if screen == .deck, let draft = draftDeck, draft != store.state.deck {
+            let alert = UIAlertController(title: "卡组尚未保存", message: "保存后，新卡组会在下一局生效。", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "保存并继续", style: .default) { [weak self] _ in
                 guard let self = self else { return }
-                if editing { self.toggleDeck(kind) } else { self.showCardDetail(kind) }
-            }
-            addDetailsGesture(card)
-            content.addSubview(card)
-            if editing && current.contains(kind) {
-                let check = UILabel(frame: CGRect(x: card.frame.maxX - 25, y: card.frame.minY - 7, width: 27, height: 27))
-                check.text = "✓"; check.textAlignment = .center; check.textColor = Palette.ink; check.font = Palette.font(17, .heavy)
-                check.backgroundColor = Palette.green; check.layer.cornerRadius = 13.5; check.clipsToBounds = true; content.addSubview(check)
-            }
-            if card.locked {
-                label("通关解锁", CGRect(x: card.frame.minX, y: card.frame.maxY + 3, width: cardW, height: 16), size: 10, color: Palette.quiet, align: .center)
-            }
-        }
-        let bottom = gridY + CGFloat((cards.count + 2) / 3) * (cardH + 22)
-        if editing {
-            let save = button("保存卡组  \(current.count)/6", CGRect(x: 18, y: bottom + 3, width: inner - 4, height: 55), primary: true) { [weak self] in
-                guard let self = self, let deck = self.draftDeck, deck.count == 6 else { return }
-                self.store.state.deck = deck; self.store.save(); self.show(.lobby); self.toast("卡组已保存，下次新牌局生效")
-            }
-            save.isEnabled = current.count == 6
-            save.accessibilityIdentifier = "saveDeck"
-            return bottom + 80
-        }
-        return bottom + 12
+                self.store.state.deck = draft; self.store.save(); self.show(destination)
+            })
+            alert.addAction(UIAlertAction(title: "放弃修改", style: .destructive) { [weak self] _ in self?.show(destination) })
+            alert.addAction(UIAlertAction(title: "继续编辑", style: .cancel))
+            present(alert, animated: true)
+        } else { show(destination) }
     }
-    private func toggleDeck(_ kind: CardKind) {
-        guard var draft = draftDeck else { return }
-        if let i = draft.firstIndex(of: kind) { draft.remove(at: i) }
-        else if draft.count < 6 { draft.append(kind) }
-        else { toast("卡组已满，先移除一张卡牌"); return }
-        draftDeck = draft; feedback(); redraw(preserveScroll: true)
+
+    private func buildDeckWorkshop() -> CGFloat {
+        let compact = scroll.bounds.height < 650
+        let current = draftDeck ?? store.state.deck
+        let units = current.filter { $0.isUnit }.count
+        let average = Double(current.reduce(0) { $0 + $1.cost }) / Double(max(1, current.count))
+        title("配牌工作台", frame: CGRect(x: 16, y: 3, width: inner, height: 46), size: 33)
+        label("6 张出战 · 平均费用 \(String(format: "%.1f", average)) · 单位 \(units) / 法术 \(6 - units)", CGRect(x: 16, y: 53, width: inner, height: 22), size: 13, color: Palette.cyan, align: .center)
+        label("① 点选要换的牌    ② 选择替补    ③ 保存", CGRect(x: 16, y: 77, width: inner, height: 18), size: 11, color: Palette.quiet, align: .center)
+        let cardW: CGFloat = compact ? 82 : 96
+        let cardH = cardW * 1.38
+        let gridWidth = cardW * 3 + 24
+        let gridX = (width - gridWidth) / 2
+        let gridY: CGFloat = 105
+        for (i, kind) in current.enumerated() {
+            let card = CardView(kind)
+            card.frame = CGRect(x: gridX + CGFloat(i % 3) * (cardW + 12), y: gridY + CGFloat(i / 3) * (cardH + 10), width: cardW, height: cardH)
+            card.selectedCard = selectedDeckSlot == i
+            card.accessibilityIdentifier = "deck.slot.\(i)"
+            card.accessibilityHint = "轻点选择要替换的卡牌，长按查看效果"
+            card.onTap = { [weak self] in
+                self?.selectedDeckSlot = i; self?.deckMessage = nil; self?.feedback(); self?.redraw()
+            }
+            addDetailsGesture(card); content.addSubview(card)
+        }
+        let gridBottom = gridY + cardH * 2 + 10
+        let hint = deckMessage ?? selectedDeckSlot.map { "替换「\(current[$0].name)」· 点选下方替补" } ?? "已拥有的替补 · 先点选上方的一张牌"
+        label(hint, CGRect(x: 16, y: gridBottom + 9, width: inner, height: 22), size: 12, color: Palette.yellow, align: .center)
+        let candidates = store.state.collection.filter { !current.contains($0) }
+        let candidateY = gridBottom + 39
+        let candidateW: CGFloat = compact ? 68 : 78
+        let candidateH = candidateW * 1.38
+        if candidates.isEmpty {
+            let panel = GamePanel(); panel.frame = CGRect(x: 24, y: candidateY, width: width - 48, height: candidateH); content.addSubview(panel)
+            let empty = label("还没有替补卡牌\n普通第 2、4、6 关首通可选择新卡", CGRect(x: 12, y: 12, width: width - 72, height: candidateH - 24), size: 14, color: Palette.quiet, align: .center, parent: panel)
+            empty.numberOfLines = 2
+        } else {
+            let rowWidth = CGFloat(candidates.count) * candidateW + CGFloat(candidates.count - 1) * 18
+            for (i, kind) in candidates.enumerated() {
+                let card = CardView(kind)
+                card.frame = CGRect(x: (width - rowWidth) / 2 + CGFloat(i) * (candidateW + 18), y: candidateY, width: candidateW, height: candidateH)
+                card.accessibilityIdentifier = "deck.replace.\(kind.rawValue)"
+                card.accessibilityHint = "替换选中的出战卡牌，长按查看效果"
+                card.onTap = { [weak self] in self?.replaceDeckCard(with: kind) }
+                addDetailsGesture(card); content.addSubview(card)
+            }
+        }
+        let saveY = candidateY + candidateH + 14
+        let dirty = current != store.state.deck
+        let reset = button("还原", CGRect(x: 16, y: saveY, width: 72, height: 45)) { [weak self] in
+            guard let self = self else { return }
+            self.draftDeck = self.store.state.deck; self.selectedDeckSlot = nil; self.deckMessage = nil; self.redraw()
+        }
+        reset.isEnabled = dirty; reset.alpha = dirty ? 1 : 0.45; reset.accessibilityIdentifier = "deck.reset"
+        let save = button(dirty ? "保存卡组" : "卡组已保存", CGRect(x: 100, y: saveY, width: width - 116, height: 45), primary: true) { [weak self] in
+            guard let self = self, let deck = self.draftDeck, deck.count == 6, Set(deck).count == 6,
+                  deck.allSatisfy({ self.store.state.collection.contains($0) }) else { return }
+            self.store.state.deck = deck; self.store.save(); self.deckMessage = "已保存 · 下次新牌局生效"; self.redraw()
+        }
+        save.isEnabled = dirty; save.alpha = dirty ? 1 : 0.6; save.accessibilityIdentifier = "saveDeck"
+        return saveY + 57
+    }
+    private func replaceDeckCard(with kind: CardKind) {
+        guard var draft = draftDeck, let slot = selectedDeckSlot, draft.indices.contains(slot) else {
+            toast("先点选上方要替换的一张牌"); return
+        }
+        guard store.state.collection.contains(kind), !draft.contains(kind) else { return }
+        let old = draft[slot]
+        draft[slot] = kind; draftDeck = draft
+        deckMessage = "\(old.name) → \(kind.name) · 尚未保存"
+        feedback(); redraw()
+    }
+
+    private func buildLibrary() -> CGFloat {
+        let compact = scroll.bounds.height < 650
+        let cards = CardKind.allCases
+        libraryIndex = min(max(libraryIndex, 0), cards.count - 1)
+        let kind = cards[libraryIndex]
+        let owned = store.state.collection.contains(kind)
+        title("卡牌收藏册", frame: CGRect(x: 16, y: 3, width: inner, height: 46), size: 33)
+        label("已收集 \(store.state.collection.count) / \(cards.count)   ·   第 \(libraryIndex + 1) 张", CGRect(x: 16, y: 55, width: inner, height: 22), size: 14, color: Palette.yellow, align: .center)
+        let progress = UIProgressView(progressViewStyle: .default)
+        progress.frame = CGRect(x: 36, y: 87, width: width - 72, height: 5)
+        progress.progressTintColor = Palette.yellow; progress.trackTintColor = UIColor(hex: 0x354681)
+        progress.progress = Float(store.state.collection.count) / Float(cards.count)
+        progress.accessibilityLabel = "卡牌收集进度"; content.addSubview(progress)
+        let heroY: CGFloat = 106
+        let cardW: CGFloat = compact ? 116 : 145
+        let cardH = cardW * 1.4
+        let card = CardView(kind)
+        card.frame = CGRect(x: 22, y: heroY, width: cardW, height: cardH)
+        card.onTap = { [weak self] in self?.showCardDetail(kind) }
+        card.accessibilityIdentifier = "library.featured"
+        content.addSubview(card)
+        let infoX = card.frame.maxX + 17, infoW = width - infoX - 22
+        label(kind.name, CGRect(x: infoX, y: heroY + 3, width: infoW, height: 30), size: 22, color: kind.tint, weight: .heavy)
+        label("\(kind.isUnit ? "单位" : "法术") · \(kind.cost) 点能量", CGRect(x: infoX, y: heroY + 39, width: infoW, height: 22), size: 13, color: Palette.quiet)
+        label(owned ? "✓ 已收集" : "🔒 未解锁", CGRect(x: infoX, y: heroY + 69, width: infoW, height: 23), size: 15, color: owned ? Palette.green : Palette.yellow)
+        let acquisition = label(kind.acquisition, CGRect(x: infoX, y: heroY + 100, width: infoW, height: cardH - 98), size: 12, color: Palette.quiet, weight: .medium)
+        acquisition.numberOfLines = 0
+        let detailY = heroY + cardH + 14
+        label("卡牌效果", CGRect(x: 22, y: detailY, width: inner, height: 21), size: 14, color: Palette.cyan)
+        let description = label(kind.detail, CGRect(x: 22, y: detailY + 24, width: width - 44, height: compact ? 57 : 65), size: 12, weight: .medium)
+        description.numberOfLines = 0
+        let tipY = detailY + (compact ? 87 : 95)
+        let tip = GamePanel(color: UIColor(hex: 0x49347B)); tip.frame = CGRect(x: 16, y: tipY, width: inner, height: 70); content.addSubview(tip)
+        label("搭配提示", CGRect(x: 12, y: 7, width: inner - 24, height: 20), size: 13, color: Palette.yellow, parent: tip)
+        let pairing = label(kind.pairingTip, CGRect(x: 12, y: 29, width: inner - 24, height: 34), size: 12, parent: tip, weight: .medium)
+        pairing.numberOfLines = 2
+        let shelfY = tipY + 83
+        let thumbW = min(40, (inner - 32) / CGFloat(cards.count))
+        let shelfW = CGFloat(cards.count) * thumbW + CGFloat(cards.count - 1) * 4
+        for (i, item) in cards.enumerated() {
+            let thumb = UIButton(frame: CGRect(x: (width - shelfW) / 2 + CGFloat(i) * (thumbW + 4), y: shelfY, width: thumbW, height: 40))
+            thumb.setImage(GameArt.image(item.art), for: .normal); thumb.imageView?.contentMode = .scaleAspectFill
+            thumb.layer.cornerRadius = 8; thumb.clipsToBounds = true
+            thumb.layer.borderWidth = i == libraryIndex ? 3 : 1
+            thumb.layer.borderColor = (i == libraryIndex ? Palette.yellow : Palette.quiet).cgColor
+            thumb.alpha = store.state.collection.contains(item) ? 1 : 0.48
+            thumb.tag = i; thumb.addTarget(self, action: #selector(libraryCardTapped(_:)), for: .touchUpInside)
+            thumb.accessibilityLabel = "\(item.name)，\(store.state.collection.contains(item) ? "已收集" : "未解锁")"
+            thumb.accessibilityIdentifier = "library.\(item.rawValue)"
+            content.addSubview(thumb)
+        }
+        let footerY = shelfY + 52
+        let previous = button("上一张", CGRect(x: 16, y: footerY, width: 103, height: 40)) { [weak self] in self?.moveLibrary(-1) }
+        previous.isEnabled = libraryIndex > 0; previous.alpha = previous.isEnabled ? 1 : 0.4
+        previous.accessibilityIdentifier = "library.previous"
+        label("点击图标翻阅", CGRect(x: 123, y: footerY + 8, width: width - 246, height: 22), size: 10, color: Palette.quiet, align: .center)
+        let next = button("下一张", CGRect(x: width - 119, y: footerY, width: 103, height: 40)) { [weak self] in self?.moveLibrary(1) }
+        next.isEnabled = libraryIndex + 1 < cards.count; next.alpha = next.isEnabled ? 1 : 0.4
+        next.accessibilityIdentifier = "library.next"
+        return footerY + 52
+    }
+    @objc private func libraryCardTapped(_ sender: UIButton) {
+        libraryIndex = sender.tag; feedback(); redraw()
+    }
+    private func moveLibrary(_ offset: Int) {
+        libraryIndex = min(max(libraryIndex + offset, 0), CardKind.allCases.count - 1)
+        feedback(); redraw()
     }
 
     private func buildBattle() -> CGFloat {
