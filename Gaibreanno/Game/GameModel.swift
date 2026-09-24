@@ -6,15 +6,15 @@ enum CardKind: String, Codable, CaseIterable {
     static let starter: [CardKind] = [.seed, .dragon, .shield, .spark, .guardian, .rewind]
     var name: String {
         switch self {
-        case .seed: return "种子炮台"
-        case .dragon: return "发条幼龙"
-        case .shield: return "时间护盾"
-        case .rewind: return "回溯术"
-        case .spark: return "能量火花"
-        case .guardian: return "齿轮卫士"
-        case .oak: return "巨木炮台"
-        case .elder: return "时空巨龙"
-        case .surge: return "能量风暴"
+        case .seed: return "Seed Turret"
+        case .dragon: return "Clock Drake"
+        case .shield: return "Time Shield"
+        case .rewind: return "Rewind"
+        case .spark: return "Energy Spark"
+        case .guardian: return "Gear Guard"
+        case .oak: return "Oak Turret"
+        case .elder: return "Time Drake"
+        case .surge: return "Energy Storm"
         }
     }
     var cost: Int {
@@ -40,19 +40,19 @@ enum CardKind: String, Codable, CaseIterable {
     }
     var isUnit: Bool { [.seed, .dragon, .guardian, .oak, .elder].contains(self) }
     var acquisition: String {
-        CardKind.starter.contains(self) ? "初始卡牌，开始冒险即可获得。" : "普通第 2、4、6 关首次通关时，可从未拥有的卡牌中选择。"
+        CardKind.starter.contains(self) ? "Starter card. Available from your first battle." : "Choose an unowned card after your first Normal clear of levels 2, 4 and 6."
     }
     var pairingTip: String {
         switch self {
-        case .seed: return "放入过去持续成长，配合时间护盾撑过等待回合。"
-        case .dragon: return "低费用适合开局放入现在，也能在未来抓住甲虫的破绽。"
-        case .shield: return "重锤来袭前放入未来；生命危险时在现在立即使用。"
-        case .rewind: return "召回最左侧单位腾出卡槽，再部署高攻击的新卡；记得预留费用。"
-        case .spark: return "先补能，再部署高费单位；缺能关也能用它突破回能限制。"
-        case .guardian: return "配合时间护盾持续防守，为过去的高攻单位争取成长时间。"
-        case .oak: return "高攻击更容易打穿单位减伤；在未来蓄力可形成一次爆发。"
-        case .elder: return "在过去成长为主力输出，搭配低费护盾与火花稳定开局。"
-        case .surge: return "搭配卫士争取等待时间，再于未来释放双倍伤害；缺能关法术不受单位减伤影响。"
+        case .seed: return "Grow in the Past. Use Time Shield to survive the wait."
+        case .dragon: return "A cheap opening unit for the Present. Try the Future to pierce the beetle's armor."
+        case .shield: return "Prepare in the Future before a heavy hit. Use the Present for urgent protection."
+        case .rewind: return "Recall your leftmost unit to free a slot for a stronger card. Save energy to replay it."
+        case .spark: return "Gain energy before playing costly units. Also helps on low-energy levels."
+        case .guardian: return "Pair with Time Shield to buy time for a strong unit growing in the Past."
+        case .oak: return "High attack helps against damage reduction. Use the Future for a burst hit."
+        case .elder: return "Grow in the Past. Pair with a cheap shield and spark for a safe opening."
+        case .surge: return "Let Gear Guard buy time for double damage in the Future. Spells bypass the drought's unit resistance."
         }
     }
     var attack: Int {
@@ -66,33 +66,33 @@ enum CardKind: String, Codable, CaseIterable {
     }
     var keyword: String {
         switch self {
-        case .seed, .oak: return "成长"
-        case .dragon, .elder: return "进化"
-        case .shield: return "护盾 +4"
-        case .rewind: return "返回手牌"
-        case .spark: return "能量 +1"
-        case .guardian: return "守护 +2"
-        case .surge: return "伤害 6"
+        case .seed, .oak: return "Grow"
+        case .dragon, .elder: return "Evolve"
+        case .shield: return "Shield +4"
+        case .rewind: return "Recall"
+        case .spark: return "Energy +1"
+        case .guardian: return "Shield +2"
+        case .surge: return "Hit 6"
         }
     }
     var detail: String {
         switch self {
         case .seed, .dragon, .oak, .elder:
-            return "每回合攻击 \(attack)。放入过去：等待一回合，成长后永久增加 2 点攻击。放入未来：等待一回合，首次攻击翻倍。"
+            return "Attacks for \(attack) each turn. Past: waits one turn, then gains +2 attack. Future: waits one turn, then doubles its first attack."
         case .guardian:
-            return "每回合攻击 1，并获得 2 点护盾。在过去成长后攻击 +2；在未来首次攻击翻倍。"
-        case .shield: return "获得 4 点护盾，抵挡敌人伤害。现在使用立即生效；放入未来，在下回合开始获得 8 点护盾。"
-        case .rewind: return "将场上最左侧的单位召回手牌，腾出卡槽。单位再次打出需支付费用；成长会重置。仅能在现在使用。"
-        case .spark: return "获得 1 点能量，上限 5。现在使用立即生效；放入未来，在下回合开始额外获得 2 点能量。"
-        case .surge: return "对敌人造成 6 点伤害。现在使用立即生效；放入未来，在下回合开始造成 12 点伤害。"
+            return "Attacks for 1 and grants 2 shield each turn. Past: waits, then gains +2 attack. Future: waits, then doubles its first attack."
+        case .shield: return "Gain 4 shield now in the Present, or 8 shield at the start of next turn in the Future. Shield absorbs enemy damage."
+        case .rewind: return "Return your leftmost unit to your hand. Replay costs energy and resets growth. Present only."
+        case .spark: return "Gain 1 energy now in the Present, or 2 extra energy at the start of next turn in the Future. Maximum energy: 5."
+        case .surge: return "Deal 6 damage now in the Present, or 12 damage at the start of next turn in the Future."
         }
     }
 }
 
 enum TimeLane: Int, CaseIterable, Codable {
     case past, present, future
-    var title: String { ["过去", "现在", "未来"][rawValue] }
-    var hint: String { ["等待 · 永久成长", "本回合生效", "等待 · 首次翻倍"][rawValue] }
+    var title: String { ["Past", "Present", "Future"][rawValue] }
+    var hint: String { ["Wait · Grow", "Act now", "Wait · Double"][rawValue] }
 }
 
 enum EncounterRule { case training, bark, shell, charge, drought, boss }
@@ -108,28 +108,28 @@ struct Stage {
     let challenge: String
     var hardModifier: String {
         switch rule {
-        case .training: return "紧缩开局：初始能量只有 2。"
-        case .bark: return "再生树皮：敌方每次攻击后恢复 2 生命。"
-        case .shell: return "封锁现在：奇数回合不能向现在出牌。"
-        case .charge: return "碎盾重锤：偶数回合攻击前消除 2 护盾。"
-        case .drought: return "深度缺能：每回合只恢复 2 能量。"
-        case .boss: return "时间震荡：每第三回合敌方攻击后，将现在的单位退回手牌。"
+        case .training: return "Tight Start: begin with only 2 energy."
+        case .bark: return "Regrowth: the enemy heals 2 HP after each attack."
+        case .shell: return "Present Lock: no cards can enter the Present on odd turns."
+        case .charge: return "Shield Break: lose 2 shield before each even-turn attack."
+        case .drought: return "Deep Drought: recover only 2 energy each turn."
+        case .boss: return "Time Shock: after every third enemy attack, your Present unit returns to your hand."
         }
     }
     var rewardMilestone: Bool { [.bark, .charge, .boss].contains(rule) }
     static let all = [
-        Stage(name: "01 · 林间警报", enemy: "巡林闹钟", health: 20, attack: 4, rule: .training,
-              lesson: "学会出牌", briefing: "每第三回合攻击 +2。把幼龙放入现在，立即出击；护盾能抵挡伤害。", challenge: "5 回合内获胜"),
-        Stage(name: "02 · 铁皮树桩", enemy: "铁皮树桩", health: 24, attack: 4, rule: .bark,
-              lesson: "过去 · 成长破甲", briefing: "未成长单位伤害 -1；成长、未来连击和法术穿甲。把种子放入过去。", challenge: "带着成长单位获胜"),
-        Stage(name: "03 · 开合甲虫", enemy: "发条甲虫", health: 28, attack: 4, rule: .shell,
-              lesson: "未来 · 抓住破绽", briefing: "奇数回合每次受伤 -2，偶数回合无护甲。未来单位的首次翻倍攻击无视护甲。", challenge: "触发一次未来单位连击"),
-        Stage(name: "04 · 重锤哨站", enemy: "重锤闹钟", health: 32, attack: 2, rule: .charge,
-              lesson: "护盾 · 预判重击", briefing: "奇数回合攻击 2，偶数回合重击 8。提前把护盾放入未来，迎接重击。", challenge: "累计抵挡 8 点伤害"),
-        Stage(name: "05 · 缺能小径", enemy: "吸能齿轮", health: 32, attack: 4, rule: .drought,
-              lesson: "能量 · 精打细算", briefing: "回能 3；单位每次伤害 -2，法术不减伤。试试高攻击单位或能量风暴。", challenge: "出牌不超过 10 张"),
-        Stage(name: "06 · 森林总闸", enemy: "暴走钟王", health: 42, attack: 4, rule: .boss,
-              lesson: "首领 · 两阶段决战", briefing: "半血前护甲 1；进入半血时消除 4 护盾，随后攻击 7。留好护盾与爆发牌。", challenge: "剩余至少 10 点生命")
+        Stage(name: "01 · Forest Alarm", enemy: "Clock Scout", health: 20, attack: 4, rule: .training,
+              lesson: "First Steps", briefing: "Attack +2 every third turn. Play Clock Drake in the Present to attack now. Shield blocks damage.", challenge: "Win within 5 turns"),
+        Stage(name: "02 · Ironbark", enemy: "Ironbark", health: 24, attack: 4, rule: .bark,
+              lesson: "Past · Growth", briefing: "Ungrown units deal 1 less damage. Growth, Future burst and spells bypass bark. Try Seed Turret in the Past.", challenge: "Win with a grown unit"),
+        Stage(name: "03 · Clock Beetle", enemy: "Clock Beetle", health: 28, attack: 4, rule: .shell,
+              lesson: "Future · Timing", briefing: "Armor 2 on odd turns; none on even turns. A Future unit's first double hit ignores armor.", challenge: "Trigger a Future unit burst"),
+        Stage(name: "04 · Hammer Post", enemy: "Hammer Clock", health: 32, attack: 2, rule: .charge,
+              lesson: "Shield · Defense", briefing: "Attacks for 2 on odd turns and 8 on even turns. Prepare a shield in the Future before the heavy hit.", challenge: "Block at least 8 damage"),
+        Stage(name: "05 · Energy Drought", enemy: "Energy Eater", health: 32, attack: 4, rule: .drought,
+              lesson: "Energy · Planning", briefing: "Recover 3 energy. Unit hits deal 2 less damage; spells are unaffected. Try strong units or Energy Storm.", challenge: "Play at most 10 cards"),
+        Stage(name: "06 · Forest Core", enemy: "Clock King", health: 42, attack: 4, rule: .boss,
+              lesson: "Boss · Two Phases", briefing: "Armor 1 above half HP. At half HP, lose 4 shield and face 7 attack. Save defense and burst damage.", challenge: "Finish with at least 10 HP")
     ]
 }
 
@@ -144,8 +144,8 @@ struct FieldCard: Codable, Equatable {
         return kind.art
     }
     var name: String {
-        if evolved && kind == .seed { return "巨木炮台" }
-        if evolved && kind == .dragon { return "时空巨龙" }
+        if evolved && kind == .seed { return "Oak Turret" }
+        if evolved && kind == .dragon { return "Time Drake" }
         return kind.name
     }
     var attack: Int { kind.attack + (evolved ? 2 : 0) }
@@ -165,13 +165,14 @@ struct BattleState: Codable {
     var discard: [CardKind] = []
     var field: [FieldCard?] = [nil, nil, nil]
     var outcome: BattleOutcome = .playing
-    var log: [String] = ["时空通道已开启。选择手牌，再选择时间卡槽。"]
+    var log: [String] = ["The time gates are open. Select a card, then a time slot."]
+    var archivedLog: [String]?
     var cardsPlayed = 0
     var damageBlocked = 0
     var chargedHits: Int? = 0
     var hardMode: Bool? = false
     var isHard: Bool { hardMode == true }
-    var briefing: String { stage.briefing + (isHard ? "\n\n困难追加：" + stage.hardModifier : "") }
+    var briefing: String { stage.briefing + (isHard ? "\n\nHard modifier: " + stage.hardModifier : "") }
 
     init(stageIndex: Int, deck: [CardKind], hard: Bool = false) {
         hardMode = hard
@@ -194,12 +195,12 @@ struct BattleState: Codable {
     var baseEnergy: Int { stage.rule == .drought ? (isHard ? 2 : 3) : min(5, 2 + turn) }
     var enemyStatus: String {
         switch stage.rule {
-        case .training: return "本轮攻击 \(enemyIntent)"
-        case .bark: return "树皮减伤 1 · 攻击 \(enemyIntent)"
-        case .shell: return "护甲 \(turn.isMultiple(of: 2) ? 0 : 2) · 攻击 \(enemyIntent)"
-        case .charge: return "\(turn.isMultiple(of: 2) ? "重击" : "蓄力攻击") \(enemyIntent)"
-        case .drought: return "回能 \(baseEnergy) · 单位减伤 2"
-        case .boss: return enemyHealth <= stage.health / 2 ? "狂暴 · 攻击 7" : "护甲 1 · 过半血后攻击 7"
+        case .training: return "Attack \(enemyIntent)"
+        case .bark: return "Bark 1 · Attack \(enemyIntent)"
+        case .shell: return "Armor \(turn.isMultiple(of: 2) ? 0 : 2) · Attack \(enemyIntent)"
+        case .charge: return "\(turn.isMultiple(of: 2) ? "Heavy hit" : "Charge") \(enemyIntent)"
+        case .drought: return "Energy \(baseEnergy) · Resist 2"
+        case .boss: return enemyHealth <= stage.health / 2 ? "Enraged · Attack 7" : "Armor 1 · Enrages at half HP"
         }
     }
     var challengeMet: Bool {
@@ -229,23 +230,23 @@ struct BattleState: Codable {
         enemyHealth = max(0, enemyHealth - hit)
         if wasCalm && enemyHealth > 0 && enemyHealth <= stage.health / 2 {
             shield = max(0, shield - 4)
-            record("钟王进入狂暴！消除 4 护盾，护甲消失，本轮起攻击 7")
+            record("Clock King enrages! Lose 4 shield. Armor gone; attack is now 7.")
         }
         return hit
     }
 
     func canPlay(_ kind: CardKind, in lane: TimeLane) -> String? {
-        guard outcome == .playing else { return "本局已结束" }
-        guard hand.contains(kind) else { return "这张卡不在手牌中" }
-        if isHard && stage.rule == .shell && !turn.isMultiple(of: 2) && lane == .present { return "甲虫封锁现在：请在偶数回合出牌，或使用过去与未来" }
-        guard energy >= kind.cost else { return "能量不足，需要 \(kind.cost) 点能量" }
-        if lane == .past && !kind.isUnit { return "过去只接收成长单位，法术请放入现在或未来" }
+        guard outcome == .playing else { return "This battle has ended." }
+        guard hand.contains(kind) else { return "That card is not in your hand." }
+        if isHard && stage.rule == .shell && !turn.isMultiple(of: 2) && lane == .present { return "Present is locked. Wait for an even turn, or use Past or Future." }
+        guard energy >= kind.cost else { return "Not enough energy. Cost: \(kind.cost)." }
+        if lane == .past && !kind.isUnit { return "Past accepts units only. Play spells in Present or Future." }
         if kind == .rewind {
-            guard lane == .present else { return "回溯术只能在现在使用" }
-            guard field.contains(where: { $0?.kind.isUnit == true }) else { return "场上没有可以召回的单位" }
+            guard lane == .present else { return "Rewind can only be played in the Present." }
+            guard field.contains(where: { $0?.kind.isUnit == true }) else { return "There is no unit to recall." }
         }
         if (kind.isUnit || lane == .future) && field[lane.rawValue] != nil {
-            return "这个卡槽已被占用，可用回溯术召回单位"
+            return "Slot occupied. Use Rewind to recall a unit."
         }
         return nil
     }
@@ -253,16 +254,16 @@ struct BattleState: Codable {
     @discardableResult
     mutating func play(_ kind: CardKind, in lane: TimeLane) -> String? {
         if let error = canPlay(kind, in: lane) { return error }
-        guard let index = hand.firstIndex(of: kind) else { return "手牌已变化" }
+        guard let index = hand.firstIndex(of: kind) else { return "Your hand has changed." }
         hand.remove(at: index)
         energy -= kind.cost
         cardsPlayed += 1
         if kind.isUnit {
             field[lane.rawValue] = FieldCard(kind: kind, waiting: lane != .present, charged: lane == .future)
-            record("\(kind.name) → \(lane.title)\(lane == .present ? "，本回合出击" : "，下回合激活")")
+            record("\(kind.name) → \(lane.title)\(lane == .present ? ", attacks this turn" : ", activates next turn")")
         } else if lane == .future {
             field[lane.rawValue] = FieldCard(kind: kind, waiting: true)
-            record("\(kind.name)已预约，下回合效果翻倍")
+            record("\(kind.name) prepared: double effect next turn.")
         } else {
             resolveSpell(kind, multiplier: 1)
             discard.append(kind)
@@ -278,35 +279,35 @@ struct BattleState: Codable {
             guard var unit = field[lane.rawValue], unit.kind.isUnit, !unit.waiting else { continue }
             let hit = hitEnemy(unit.attack * (unit.charged ? 2 : 1), evolved: unit.evolved, charged: unit.charged)
             if unit.charged { chargedHits = (chargedHits ?? 0) + 1 }
-            record("\(unit.name)造成 \(hit) 点伤害\(unit.charged ? " · 未来连击" : "")")
+            record("\(unit.name) deals \(hit) damage\(unit.charged ? " · Future burst" : "")")
             unit.charged = false
             field[lane.rawValue] = unit
             if unit.kind == .guardian {
                 shield += 2
-                record("齿轮卫士提供 2 点护盾")
+                record("Gear Guard grants 2 shield.")
             }
             checkOutcome()
             if outcome != .playing { return }
         }
         if isHard && stage.rule == .charge && turn.isMultiple(of: 2) {
-            shield = max(0, shield - 2); record("碎盾重锤消除 2 护盾")
+            shield = max(0, shield - 2); record("Shield Break removes 2 shield.")
         }
         let incoming = enemyIntent
         let blocked = min(shield, incoming)
         shield -= blocked
         damageBlocked += blocked
         playerHealth = max(0, playerHealth - (incoming - blocked))
-        record("敌方攻击 \(incoming) · 护盾抵挡 \(blocked) · 受到 \(incoming - blocked) 点伤害")
+        record("Enemy attack \(incoming) · Blocked \(blocked) · Damage taken \(incoming - blocked)")
         checkOutcome()
         if outcome != .playing { return }
 
         if isHard && stage.rule == .bark {
-            enemyHealth = min(stage.health, enemyHealth + 2); record("再生树皮恢复 2 生命")
+            enemyHealth = min(stage.health, enemyHealth + 2); record("Regrowth heals 2 HP.")
         }
         if isHard && stage.rule == .boss && turn.isMultiple(of: 3), let unit = field[1], unit.kind.isUnit {
             field[1] = nil
             if hand.count < 6 { hand.append(unit.kind) } else { discard.append(unit.kind) }
-            record("时间震荡！\(unit.kind.name)退出现在，手牌满时进入弃牌堆")
+            record("Time Shock recalls \(unit.kind.name) from Present; discarded if your hand is full.")
         }
         turn += 1
         energy = baseEnergy
@@ -316,7 +317,7 @@ struct BattleState: Codable {
                 card.waiting = false
                 card.evolved = lane == .past
                 field[lane.rawValue] = card
-                record(lane == .past ? "成长连锁！\(card.name)攻击 +2" : "\(card.name)已激活，下次攻击翻倍")
+                record(lane == .past ? "Growth! \(card.name) gains +2 attack." : "\(card.name) is ready: next attack doubled.")
             } else {
                 field[lane.rawValue] = nil
                 resolveSpell(card.kind, multiplier: 2)
@@ -326,7 +327,7 @@ struct BattleState: Codable {
         checkOutcome()
         if outcome == .playing {
             drawCards(2)
-            record("第 \(turn) 回合 · 能量恢复 · 抽取手牌")
+            record("Turn \(turn) · Energy restored · Cards drawn")
         }
     }
 
@@ -334,19 +335,19 @@ struct BattleState: Codable {
         switch kind {
         case .shield:
             shield += 4 * multiplier
-            record("时间护盾 +\(4 * multiplier)")
+            record("Time Shield +\(4 * multiplier)")
         case .spark:
             let gain = min(5 - energy, multiplier)
             energy += gain
-            record("能量火花 +\(gain) · 能量上限 5")
+            record("Energy Spark +\(gain) · Energy cap 5")
         case .surge:
             let hit = hitEnemy(6 * multiplier, spell: true)
-            record("能量风暴造成 \(hit) 点伤害")
+            record("Energy Storm deals \(hit) damage.")
         case .rewind:
             if let index = field.firstIndex(where: { $0?.kind.isUnit == true }), let unit = field[index] {
                 field[index] = nil
                 hand.append(unit.kind)
-                record("\(unit.kind.name)已召回手牌，成长重置")
+                record("\(unit.kind.name) returned to hand. Growth reset.")
             }
         default: break
         }
@@ -443,6 +444,13 @@ final class GameStore {
                 state.selectedStage = state.completedStages.isEmpty ? 0 : 1
                 state.battle = nil
                 state.bestStars = state.completedStages.isEmpty ? [:] : ["0": 1]
+                _ = save()
+            }
+            if var battle = state.battle,
+               battle.log.contains(where: { $0.range(of: "\\p{Han}", options: .regularExpression) != nil }) {
+                battle.archivedLog = (battle.archivedLog ?? []) + battle.log
+                battle.log = ["Battle resumed. Earlier log entries are archived.", battle.briefing]
+                state.battle = battle
                 _ = save()
             }
         } else { state = SavedGame() }

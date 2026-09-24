@@ -1,6 +1,8 @@
-# 时空牌局
+# Time Cards（时空牌局）
 
 一个使用 UIKit 实现的竖屏、离线策略卡牌游戏。基于项目中的第二版彩色原型，已实现卡组大厅、时间战场、胜利选牌、卡组编辑、图鉴和卡牌详情。
+
+应用界面统一使用英文，开发文档保留中文。卡名支持两行，较长的规则与搭配提示已适配小屏；旧存档中的中文战斗记录会归档并显示英文续战提示，保留牌局、卡组和通关进度。
 
 ## 当前可玩内容
 
@@ -34,7 +36,7 @@
 
 用 Xcode 打开 `Gaibreanno.xcodeproj`，选择 `Gaibreanno` scheme 和 iPhone 模拟器运行。
 
-保留了原有 Bundle ID `com.cvlc.Gaibreanno`、签名方式、部署目标以及 Debug / Release 配置。应用显示名称为“时空牌局”。没有添加第三方依赖。
+保留了原有 Bundle ID `com.cvlc.Gaibreanno`、签名方式、部署目标以及 Debug / Release 配置。应用显示名称为“Time Cards”。没有添加第三方依赖。
 
 ```sh
 xcodebuild -project Gaibreanno.xcodeproj \

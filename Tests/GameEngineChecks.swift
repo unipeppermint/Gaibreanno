@@ -21,7 +21,7 @@ struct GameEngineChecks {
         b = fresh(); b.play(.seed, in: .past); b.endTurn()
         expect(b.enemyHealth == 20, "Past unit waits through first turn")
         expect(b.field[0]?.evolved == true && b.field[0]?.attack == 4, "Past unit permanently grows")
-        expect(b.field[0]?.art == 7 && b.field[0]?.name == "巨木炮台", "Growth changes illustration and name")
+        expect(b.field[0]?.art == 7 && b.field[0]?.name == "Oak Turret", "Growth changes illustration and name")
         b.endTurn(); expect(b.enemyHealth == 16, "Grown unit attacks next turn")
         b.endTurn(); expect(b.enemyHealth == 12, "Growth bonus persists")
 
@@ -242,6 +242,17 @@ struct GameEngineChecks {
         versionTwoBattle.removeValue(forKey: "hardMode"); versionTwoJSON["battle"] = versionTwoBattle
         let oldSave = try JSONDecoder().decode(SavedGame.self, from: JSONSerialization.data(withJSONObject: versionTwoJSON))
         expect(!oldSave.viewingHard && oldSave.battle?.isHard == false && oldSave.bestStars == save.bestStars, "Older saves default to normal with progress preserved")
+        var languageSave = save
+        languageSave.battle?.log = ["第 2 回合 · 能量恢复", "时间护盾 +4"]
+        let healthBeforeLanguageUpdate = languageSave.battle?.playerHealth
+        defaults.set(try JSONEncoder().encode(languageSave), forKey: "time-cards.saved-game.v1")
+        let englishStore = GameStore(defaults: defaults)
+        expect(englishStore.state.battle?.log.allSatisfy { $0.range(of: "\\p{Han}", options: .regularExpression) == nil } == true, "Resumed battle shows English log")
+        expect(englishStore.state.battle?.archivedLog == languageSave.battle?.log, "Original log is archived without data loss")
+        expect(englishStore.state.battle?.playerHealth == healthBeforeLanguageUpdate && englishStore.state.battle?.field == languageSave.battle?.field, "Language update preserves live battle")
+        expect(englishStore.state.collection == languageSave.collection && englishStore.state.bestStars == languageSave.bestStars, "Language update preserves cards and stars")
+        let englishReload = GameStore(defaults: defaults)
+        expect(englishReload.state.battle?.archivedLog?.count == 2, "Log migration runs only once")
         print("PASS: \(checks) game engine checks, including all six encounters and save round-trip.")
     }
 }

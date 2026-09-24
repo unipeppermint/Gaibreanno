@@ -274,6 +274,7 @@ final class CardView: UIControl {
         addSubview(footer)
         title.font = Palette.font(14, .heavy); title.textColor = Palette.ink
         title.textAlignment = .center; title.adjustsFontSizeToFitWidth = true; title.minimumScaleFactor = 0.75
+        title.numberOfLines = 2
         effect.font = Palette.font(10, .bold); effect.textColor = Palette.ink
         effect.adjustsFontSizeToFitWidth = true; effect.minimumScaleFactor = 0.85
         icon.tintColor = Palette.ink; icon.contentMode = .scaleAspectFit
@@ -311,13 +312,13 @@ final class CardView: UIControl {
     private func configure() {
         artView.image = GameArt.image(fieldCard?.art ?? kind.art)
         title.text = titleOverride ?? fieldCard?.name ?? kind.name
-        effect.text = fieldCard?.waiting == true ? "等待激活" : fieldCard?.evolved == true ? "已成长" : kind.keyword
+        effect.text = fieldCard?.waiting == true ? "Waiting" : fieldCard?.evolved == true ? "Grown" : kind.keyword
         stat.text = "\(fieldCard?.attack ?? kind.attack)"
         stat.isHidden = !kind.isUnit
         icon.image = UIImage(systemName: kind.symbol)
         badge.number = kind.cost
-        accessibilityLabel = "\(title.text ?? kind.name)，\(kind.cost) 点能量，\(kind.keyword)"
-        accessibilityHint = "轻点选择，长按查看效果"
+        accessibilityLabel = "\(title.text ?? kind.name), \(kind.cost) energy, \(kind.keyword)"
+        accessibilityHint = "Tap to select. Hold for details."
     }
     private func updateSelection() {
         layer.borderColor = (selectedCard ? UIColor.white : kind.tint).cgColor
@@ -330,13 +331,18 @@ final class CardView: UIControl {
     override func layoutSubviews() {
         super.layoutSubviews()
         gradient.frame = bounds; gradient.cornerRadius = 12
-        let pad: CGFloat = 5, footerH: CGFloat = min(47, bounds.height * 0.3)
+        let pad: CGFloat = 5, footerH: CGFloat = min(58, max(43, bounds.height * 0.36))
         artView.frame = CGRect(x: pad, y: pad, width: bounds.width - pad * 2, height: bounds.height - footerH - pad * 2)
         footer.frame = CGRect(x: pad, y: bounds.height - footerH - pad, width: bounds.width - pad * 2, height: footerH)
-        title.frame = CGRect(x: 2, y: 1, width: footer.bounds.width - 4, height: footerH * 0.51)
-        icon.frame = CGRect(x: 5, y: footerH * 0.56, width: 12, height: 12)
-        effect.frame = CGRect(x: 20, y: footerH * 0.5, width: max(15, footer.bounds.width - (kind.isUnit ? 46 : 23)), height: footerH * 0.49)
-        stat.frame = CGRect(x: footer.bounds.width - 24, y: footerH * 0.53, width: 21, height: 20)
+        title.font = Palette.font(max(10, min(14, bounds.width * 0.13)), .heavy)
+        title.frame = CGRect(x: 2, y: 1, width: footer.bounds.width - 4, height: footerH * 0.59)
+        let narrow = bounds.width < 90
+        icon.isHidden = narrow
+        icon.frame = CGRect(x: 4, y: footerH * 0.65, width: 11, height: 11)
+        let effectX: CGFloat = narrow ? 4 : 18
+        effect.frame = CGRect(x: effectX, y: footerH * 0.61, width: max(20, footer.bounds.width - effectX - (kind.isUnit ? 25 : 3)), height: footerH * 0.36)
+        stat.font = Palette.font(narrow ? 11 : 13, .black)
+        stat.frame = CGRect(x: footer.bounds.width - 22, y: footerH * 0.62, width: 19, height: min(19, footerH * 0.36))
         badge.frame = CGRect(x: 0, y: 0, width: min(31, bounds.width * 0.29), height: min(36, bounds.width * 0.34))
         layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: 12).cgPath
     }
@@ -371,7 +377,7 @@ final class LaneView: UIControl {
         }
         addTarget(self, action: #selector(tapped), for: .touchUpInside)
         isAccessibilityElement = true
-        accessibilityLabel = "\(lane.title)卡槽，\(card?.name ?? "空")，\(lane.hint)"
+        accessibilityLabel = "\(lane.title) slot, \(card?.name ?? "empty"), \(lane.hint)"
         accessibilityTraits = .button
         accessibilityIdentifier = "lane.\(lane.rawValue)"
     }
@@ -401,7 +407,7 @@ final class HealthBar: UIView {
         label.text = "\(current) / \(maximum)"; label.textColor = .white
         label.font = Palette.font(13, .heavy); label.textAlignment = .center
         addSubview(track); addSubview(bar); addSubview(label)
-        isAccessibilityElement = true; accessibilityLabel = "敌方生命 \(current)，上限 \(maximum)"
+        isAccessibilityElement = true; accessibilityLabel = "Enemy HP \(current) of \(maximum)"
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func layoutSubviews() {

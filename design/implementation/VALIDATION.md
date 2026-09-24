@@ -1,6 +1,17 @@
 # 验证记录
 
-日期：2026-09-23
+日期：2026-09-24
+
+## 英文界面与布局
+
+- 应用显示名称改为 Time Cards，界面、卡名、关卡、规则、战斗记录、弹窗和无障碍标签统一使用英文；应用文本源文件检查未发现中文字符。
+- 卡名支持两行，小卡压缩图标占位；关卡规则与收藏册搭配提示支持三行，小屏翻页按钮字号作了调整。
+- 中文旧战斗记录迁移到不展示的归档字段，界面显示英文续战提示；新增五项检查验证记录归档、牌局与进度保留及重复加载不重复迁移。
+- Debug 模拟器构建成功，325 项状态机检查通过。
+- SE 实际检查大厅、配牌、收藏册、普通/困难选关、设置、战斗说明、战场与胜利结算，主要操作完整显示。实际以 3 回合、16 点生命取得第一关三星。
+- 截图：`screenshots/english-library-se.png`、`screenshots/english-battle-se.png`、`screenshots/english-victory-se.png`。
+- 主 iPhone 17 Pro 模拟器已更新并复核英文大厅，保留原有 6/6 通关进度与卡组；截图：`screenshots/english-lobby.png`。
+- 开发文档保留中文；历史原型和验证截图保留作为迭代记录。本次没有在真机或旧版 iOS 系统上验证。
 
 ## 卡组与图鉴分工优化
 
@@ -42,7 +53,7 @@
 执行 `./scripts/check-game.sh`，结果：
 
 ```
-PASS: 320 game engine checks, including all six encounters and save round-trip.
+PASS: 325 game engine checks, including all six encounters and save round-trip.
 ```
 
 覆盖费用、卡槽限制、无效操作不扣费、成长、未来等待及首次翻倍、护盾与致命伤害顺序、回溯、资源上限、卡牌守恒、普通与困难三星路线、不同奖励组合、穿甲、重击、缺能、首领狂暴碎盾、困难独立规则、星级隔离、解锁与存档兼容。
