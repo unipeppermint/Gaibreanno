@@ -1,4 +1,5 @@
 import UIKit
+import SafariServices
 
 final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     private enum Screen { case lobby, deck, library, battle, reward, level, settings }
@@ -741,9 +742,17 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         }
         let help = button("How to Play", CGRect(x: 16, y: 348, width: inner, height: 58), icon: "questionmark.circle.fill") { [weak self] in self?.showRules() }
         help.accessibilityIdentifier = "settings.rules"
-        let note = label("Settings save automatically\nDecks and progress stay on this device", CGRect(x: 24, y: 437, width: width - 48, height: 52), size: 13, color: Palette.quiet, align: .center)
+        let privacy = button("Privacy Policy", CGRect(x: 16, y: 418, width: inner, height: 58), icon: "hand.raised.fill") { [weak self] in self?.showPrivacyPolicy() }
+        privacy.accessibilityIdentifier = "settings.privacy"
+        let note = label("Settings save automatically\nDecks and progress stay on this device", CGRect(x: 24, y: 494, width: width - 48, height: 52), size: 13, color: Palette.quiet, align: .center)
         note.numberOfLines = 2
-        return 516
+        return 568
+    }
+    private func showPrivacyPolicy() {
+        guard let url = URL(string: "https://doc-hosting.flycricket.io/time-cards-privacy-policy/e5f15605-bef4-4c34-b2f1-149a397dc765/privacy") else { return }
+        let browser = SFSafariViewController(url: url)
+        browser.dismissButtonStyle = .close
+        present(browser, animated: !store.state.reducedMotion)
     }
     @objc private func hapticsChanged(_ sender: UISwitch) {
         store.state.haptics = sender.isOn

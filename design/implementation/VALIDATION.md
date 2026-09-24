@@ -2,6 +2,21 @@
 
 日期：2026-09-24
 
+## 提审准备：隐私政策入口
+
+- 设置页新增 Privacy Policy，通过系统 `SFSafariViewController` 打开用户提供的 [在线政策](https://doc-hosting.flycricket.io/time-cards-privacy-policy/e5f15605-bef4-4c34-b2f1-149a397dc765/privacy)。
+- SE 实测入口完整可见，网页加载正常，关闭后返回设置；在线正文已填写联系邮箱。
+- Debug 模拟器与 Release 真机架构未签名构建通过，主模拟器已安装更新。此次未修改游戏规则，未重复运行状态机测试。
+- 实测托管页顶部包含 Flycricket 平台广告横幅，建议发布前改用无广告托管；未修改远端内容或 App Store Connect。
+
+## 提审准备：隐私清单
+
+- 新增 `Gaibreanno/PrivacyInfo.xcprivacy`，声明不跟踪、无跟踪域名、无收集数据类型。
+- `UserDefaults` 声明使用理由 `CA92.1`：仅读写本应用自己的游戏存档与偏好。依据 Apple 的 [Required Reason API 文档](https://developer.apple.com/documentation/bundleresources/app-privacy-configuration/nsprivacyaccessedapitypes/nsprivacyaccessedapitypereasons)。
+- Xcode 同步目录自动将清单纳入应用资源，无需修改项目、签名或 Bundle ID。
+- Release 真机架构未签名构建成功；源文件与产物中的清单均通过 `plutil -lint`，并使用 `cmp` 确认打包内容完全一致。
+- 本次只变更资源声明，未重复运行游戏逻辑测试；尚未执行 App Store Connect 上传验证。
+
 ## 英文界面与布局
 
 - 应用显示名称改为 Time Cards，界面、卡名、关卡、规则、战斗记录、弹窗和无障碍标签统一使用英文；应用文本源文件检查未发现中文字符。
