@@ -253,6 +253,85 @@ struct GameEngineChecks {
         expect(englishStore.state.collection == languageSave.collection && englishStore.state.bestStars == languageSave.bestStars, "Language update preserves cards and stars")
         let englishReload = GameStore(defaults: defaults)
         expect(englishReload.state.battle?.archivedLog?.count == 2, "Log migration runs only once")
+        // Contract economy, campaign isolation, loss, continuation and persistence.
+        var contractGame = SavedGame()
+        contractGame.startBattle(); contractGame.battle?.play(.seed, in: .past)
+        expect(!contractGame.startContract(stake: -25, risk: .measured), "Negative stakes rejected")
+        expect(!contractGame.startContract(stake: 26, risk: .measured), "Unsupported stakes rejected")
+        expect(contractGame.startContract(stake: 50, risk: .daring) && contractGame.chips == 250, "Stake deducted exactly once")
+        expect(!contractGame.startContract(stake: 50, risk: .daring) && contractGame.chips == 250, "Active run cannot be overwritten or charged twice")
+        expect(contractGame.activeBattle?.enemyIntent == 5, "Contract attack bonus is telegraphed")
+        expect(!contractGame.finishContract(bank: true) && !contractGame.continueContract(boon: .mend), "Cannot bank or advance before victory")
+        expect(!contractGame.refillPracticeChips(), "No practice refill during an active run")
+        expect(contractGame.activeBattle?.overdrive() == true, "Contract enables health for energy trade")
+        expect(contractGame.activeBattle?.playerHealth == 17 && contractGame.activeBattle?.energy == 5, "Overdrive pays three HP and grants two energy")
+        expect(contractGame.activeBattle?.overdrive() == false, "Cannot overdrive twice in a turn")
+        let restoredRun = try JSONDecoder().decode(SavedGame.self, from: JSONEncoder().encode(contractGame))
+        expect(restoredRun.chips == 250 && restoredRun.contract?.battle.overdriveTurn == 1, "Chips and overdrive limit survive reload")
+        expect(restoredRun.activeBattle?.overdriveTurn == 1, "Restored battle routes to contract")
+        contractGame.activeBattle?.outcome = .won
+        contractGame.activeBattle?.playerHealth = 10
+        expect(contractGame.contract?.payout == 100, "First payout includes the stake")
+        expect(contractGame.continueContract(boon: .mend), "Victory can roll into another round")
+        expect(contractGame.chips == 250 && contractGame.contract?.round == 1, "Continuation does not deduct another stake")
+        expect(contractGame.activeBattle?.playerHealth == 16 && contractGame.activeBattle?.shield == 0, "Mend carries health and restores six")
+        expect(contractGame.activeBattle?.overdriveTurn == nil && contractGame.activeBattle?.hand.count == 4, "New encounter resets hand and overdrive")
+        contractGame.activeBattle?.outcome = .won
+        expect(contractGame.continueContract(boon: .ward), "Second victory can continue with ward")
+        expect(contractGame.activeBattle?.shield == 8 && contractGame.activeBattle?.playerHealth == 16, "Ward grants shield while preserving health")
+        contractGame.activeBattle?.outcome = .won
+        expect(!contractGame.continueContract(boon: .mend), "Third victory cannot advance beyond route")
+        expect(contractGame.contract?.payout == 400 && contractGame.finishContract(bank: true), "Third victory banks the advertised payout")
+        expect(contractGame.chips == 650 && contractGame.contractWallet?.history.first?.net == 350, "Wallet and net profit balance correctly")
+        expect(!contractGame.finishContract(bank: true) && contractGame.chips == 650, "Bank cannot pay twice")
+        expect(contractGame.battle?.field[0]?.kind == .seed && contractGame.battle?.energy == 1, "Saved campaign resumes exactly where it stopped")
+        expect(contractGame.completedStages.isEmpty && contractGame.collection == CardKind.starter, "Contract wins grant no campaign unlocks")
+        var loss = SavedGame()
+        loss.contractWallet = ContractWallet(chips: 25)
+        expect(loss.startContract(stake: 25, risk: .ruthless), "Minimum bankroll can enter")
+        expect(loss.activeBattle?.playerHealth == 16 && loss.activeBattle?.enemyIntent == 6, "Ruthless applies both advertised penalties")
+        loss.activeBattle?.outcome = .lost
+        expect(!loss.finishContract(bank: true), "Defeat cannot be cashed out")
+        expect(loss.finishContract(bank: false) && loss.chips == 0, "Loss consumes only the committed stake")
+        expect(loss.refillPracticeChips() && loss.chips == 100 && !loss.refillPracticeChips(), "Free refill prevents lockout without repeated collection")
+        loss.contractWallet?.chips = 24
+        expect(!loss.startContract(stake: 25, risk: .measured), "Insufficient chips cannot start a contract")
+        b = fresh(); expect(!b.overdrive(), "Campaign does not enable contract overdrive")
+        b.contractRisk = .measured; b.playerHealth = 3
+        expect(!b.overdrive() && b.playerHealth == 3, "Overdrive cannot cause lethal self-damage")
+        b.playerHealth = 20; b.energy = 4
+        expect(!b.overdrive() && b.playerHealth == 20, "No health charged when energy would overflow")
+        b.energy = 1; b.shield = 10
+        expect(b.overdrive() && b.shield == 10 && b.playerHealth == 17, "Overdrive health cost bypasses shields")
+        b.endTurn(); b.energy = 1
+        expect(b.overdrive(), "Overdrive becomes available on the next turn")
+        let oldContractFree = try JSONDecoder().decode(SavedGame.self, from: JSONSerialization.data(withJSONObject: versionTwoJSON))
+        expect(oldContractFree.chips == 300 && oldContractFree.contract == nil, "Pre-contract saves receive default wallet without losing progress")
+        defaults.set(try JSONEncoder().encode(restoredRun), forKey: "time-cards.saved-game.v1")
+        let persistedContract = GameStore(defaults: defaults)
+        expect(persistedContract.state.chips == 250 && persistedContract.state.contract?.stake == 50 && persistedContract.state.battle?.field[0]?.kind == .seed, "GameStore restores both modes independently")
+        // Real legal routes exercise all three risks without forcing a victory state.
+        for risk in ContractRisk.allCases {
+            var runGame = SavedGame(); runGame.startContract(stake: 25, risk: risk)
+            for round in 0..<3 {
+                var fight = runGame.activeBattle!
+                for move: (CardKind, TimeLane) in [(.seed, .past), (.dragon, .present), (.spark, .present), (.shield, .present)] {
+                    expect(fight.play(move.0, in: move.1) == nil, "Contract opening plays are legal")
+                }
+                fight.endTurn()
+                while fight.outcome == .playing && fight.turn < 15 {
+                    if fight.hand.contains(.spark) && fight.energy < 3 { expect(fight.play(.spark, in: .present) == nil, "Contract energy recovery is legal") }
+                    if fight.hand.contains(.shield) { expect(fight.play(.shield, in: .present) == nil, "Contract defense is legal") }
+                    if fight.hand.contains(.guardian) && fight.field[2] == nil { expect(fight.play(.guardian, in: .future) == nil, "Contract future placement is legal") }
+                    fight.endTurn()
+                }
+                expect(fight.outcome == .won, "Starter deck wins risk \(risk.rawValue), round \(round + 1)")
+                runGame.activeBattle = fight
+                if round < 2 { expect(runGame.continueContract(boon: .mend), "Legal win can continue") }
+            }
+            expect(runGame.finishContract(bank: true), "Legal three-win route pays out")
+            expect(runGame.chips == 275 + 25 * risk.payoutSteps[2] / 10, "Full run total matches advertised payout")
+        }
         print("PASS: \(checks) game engine checks, including all six encounters and save round-trip.")
     }
 }

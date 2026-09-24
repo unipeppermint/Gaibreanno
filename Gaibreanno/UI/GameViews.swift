@@ -20,6 +20,51 @@ enum Palette {
     }
 }
 
+/// Shared, resolution-independent gold coin for balances, stakes and payouts.
+enum GoldCoin {
+    private static let image = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 40)).image { renderer in
+        let context = renderer.cgContext
+        UIColor(hex: 0x9E570C).setFill()
+        UIBezierPath(ovalIn: CGRect(x: 2, y: 4, width: 36, height: 35)).fill()
+        let face = UIBezierPath(ovalIn: CGRect(x: 2, y: 1, width: 36, height: 35))
+        context.saveGState()
+        face.addClip()
+        let colors = [UIColor(hex: 0xFFF7A1).cgColor, UIColor(hex: 0xFFD34A).cgColor, UIColor(hex: 0xEAA01A).cgColor] as CFArray
+        if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 0.45, 1]) {
+            context.drawLinearGradient(gradient, start: CGPoint(x: 10, y: 1), end: CGPoint(x: 29, y: 36), options: [])
+        }
+        context.restoreGState()
+        UIColor(hex: 0xFFEBA0).setStroke(); face.lineWidth = 2; face.stroke()
+        let inset = UIBezierPath(ovalIn: CGRect(x: 7, y: 6, width: 26, height: 25))
+        UIColor(hex: 0xBC7A17).setStroke(); inset.lineWidth = 1.5; inset.stroke()
+        let crest = UIBezierPath()
+        crest.move(to: CGPoint(x: 20, y: 10)); crest.addLine(to: CGPoint(x: 26, y: 18.5))
+        crest.addLine(to: CGPoint(x: 20, y: 27)); crest.addLine(to: CGPoint(x: 14, y: 18.5)); crest.close()
+        UIColor(hex: 0xB87913).setFill(); crest.fill()
+    }
+
+    static func text(_ text: String, font: UIFont, color: UIColor) -> NSAttributedString {
+        let result = NSMutableAttributedString(string: text, attributes: [.font: font, .foregroundColor: color])
+        let source = text as NSString
+        var search = NSRange(location: 0, length: source.length)
+        var ranges: [NSRange] = []
+        while search.length > 0 {
+            let range = source.range(of: "🪙", options: [], range: search)
+            guard range.location != NSNotFound else { break }
+            ranges.append(range)
+            search = NSRange(location: NSMaxRange(range), length: source.length - NSMaxRange(range))
+        }
+        for range in ranges.reversed() {
+            let attachment = NSTextAttachment()
+            attachment.image = image
+            let side = font.pointSize * 1.12
+            attachment.bounds = CGRect(x: 0, y: (font.capHeight - side) / 2, width: side, height: side)
+            result.replaceCharacters(in: range, with: NSAttributedString(attachment: attachment))
+        }
+        return result
+    }
+}
+
 extension CardKind {
     var tint: UIColor {
         switch self {

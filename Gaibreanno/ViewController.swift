@@ -2,7 +2,7 @@ import UIKit
 import SafariServices
 
 final class ViewController: UIViewController, UIGestureRecognizerDelegate {
-    private enum Screen { case lobby, deck, library, battle, reward, level, settings }
+    private enum Screen { case lobby, deck, library, battle, reward, level, settings, contracts }
     private let store = GameStore()
     private let backdrop = GameBackdrop()
     private let scroll = UIScrollView()
@@ -10,6 +10,8 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     private var navigation = UIView()
     private var screen: Screen = .lobby
     private var levelPage = 0
+    private var contractStake = 25
+    private var contractRisk: ContractRisk = .measured
     private var levelPageSize: Int { view.bounds.height - view.safeAreaInsets.top - view.safeAreaInsets.bottom < 700 ? 2 : 3 }
     private var selectedCard: CardKind?
     private var selectedReward: CardKind?
@@ -38,7 +40,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         scroll.contentInsetAdjustmentBehavior = .never
         scroll.alwaysBounceVertical = false
         view.addSubview(scroll); scroll.addSubview(content)
-        if store.state.battle?.outcome == .won {
+        if store.state.activeBattle?.outcome == .won {
             screen = .reward
             selectedReward = store.state.rewards.first
         }
@@ -66,8 +68,9 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     }
     private func redraw(preserveScroll: Bool = false) {
         let offset = scroll.contentOffset
+        scroll.showsVerticalScrollIndicator = screen == .contracts || screen == .reward
         backdrop.frame = view.bounds
-        let hasNav = screen == .lobby || screen == .deck || screen == .library
+        let hasNav = screen == .lobby || screen == .deck || screen == .library || screen == .contracts
         let navHeight: CGFloat = hasNav ? 72 : 0
         scroll.frame = CGRect(x: 0, y: view.safeAreaInsets.top + 2, width: view.bounds.width,
                               height: view.bounds.height - view.safeAreaInsets.top - view.safeAreaInsets.bottom - navHeight - 2)
@@ -77,6 +80,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         content.frame = CGRect(x: (view.bounds.width - width) / 2, y: 0, width: width, height: 0)
         let height: CGFloat
         switch screen {
+        case .contracts: height = buildContracts()
         case .settings: height = buildSettings()
         case .level: height = buildLevels()
         case .lobby: height = buildLobby()
@@ -96,11 +100,19 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
                                          color: UIColor = .white, align: NSTextAlignment = .left,
                                          parent: UIView? = nil, weight: UIFont.Weight = .bold) -> UILabel {
         let l = gameLabel(text, size: size, color: color, weight: weight, alignment: align)
+        if text.contains("🪙") {
+            l.attributedText = GoldCoin.text(text, font: l.font, color: color)
+            l.accessibilityLabel = text.replacingOccurrences(of: "🪙", with: "Gold")
+        }
         l.frame = frame; (parent ?? content).addSubview(l); return l
     }
     @discardableResult private func button(_ title: String, _ frame: CGRect, primary: Bool = false,
                                           icon: String? = nil, parent: UIView? = nil, action: @escaping () -> Void) -> GameButton {
         let b = GameButton(title, primary: primary, symbol: icon); b.frame = frame; b.onTap = action
+        if title.contains("🪙"), let font = b.titleLabel?.font {
+            b.setAttributedTitle(GoldCoin.text(title, font: font, color: primary ? Palette.ink : .white), for: .normal)
+            b.accessibilityLabel = title.replacingOccurrences(of: "🪙", with: "Gold")
+        }
         (parent ?? content).addSubview(b); return b
     }
     private func art(_ index: Int, _ frame: CGRect, parent: UIView? = nil, radius: CGFloat = 12) -> UIImageView {
@@ -136,7 +148,10 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         level.titleLabel?.font = Palette.font(14, .heavy)
         let cardW = (inner - 40) / 3
         let cardH = cardW * (compact ? 1.38 : 1.45)
-        let panelY: CGFloat = compact ? 103 : 128
+        let bannerY: CGFloat = compact ? 103 : 128
+        let contractButton = button("Fate Contracts  ·  🪙 \(store.state.chips)", CGRect(x: 18, y: bannerY, width: inner - 4, height: 48), primary: true) { [weak self] in self?.show(.contracts) }
+        contractButton.accessibilityIdentifier = "openContracts"
+        let panelY = bannerY + 62
         let panelH = cardH * 2 + (compact ? 57 : 67)
         let panel = GamePanel(); panel.frame = CGRect(x: 16, y: panelY, width: inner, height: panelH); content.addSubview(panel)
         label("My Deck", CGRect(x: 14, y: 10, width: 150, height: 26), size: 20, parent: panel, weight: .heavy)
@@ -156,8 +171,8 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         let choose = UIButton(frame: challenge.bounds); choose.accessibilityLabel = "Levels"
         choose.addTarget(self, action: #selector(stageButtonTapped), for: .touchUpInside); challenge.addSubview(choose)
         label("›", CGRect(x: inner - 29, y: 22, width: 20, height: 30), size: 28, parent: challenge)
-        let battle = store.state.battle
-        let startText = battle == nil ? "Start Battle" : (battle?.outcome == .won ? "Claim Reward" : battle?.outcome == .lost ? "Replay" : "Resume")
+        let battle = store.state.activeBattle
+        let startText = store.state.contract != nil ? "Resume Contract" : battle == nil ? "Start Battle" : (battle?.outcome == .won ? "Claim Reward" : battle?.outcome == .lost ? "Replay" : "Resume")
         let start = button(startText, CGRect(x: 18, y: challengeY + (compact ? 72 : 86), width: inner - 4, height: compact ? 50 : 58), primary: true, icon: "bolt.shield.fill") { [weak self] in self?.startOrResume() }
         start.accessibilityIdentifier = "startBattle"
         return challengeY + (compact ? 126 : 160)
@@ -168,14 +183,14 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         navigation = UIView(frame: CGRect(x: (view.bounds.width - width) / 2, y: view.bounds.height - view.safeAreaInsets.bottom - 68, width: width, height: 68 + view.safeAreaInsets.bottom))
         navigation.backgroundColor = UIColor(hex: 0x0D164F)
         let line = UIView(frame: CGRect(x: 0, y: 0, width: width, height: 1)); line.backgroundColor = UIColor(hex: 0x4459A7); navigation.addSubview(line)
-        let titles = ["Adventure", "Deck", "Collection"], icons = ["mountain.2.fill", "rectangle.on.rectangle.angled", "book.closed.fill"]
-        let pages: [Screen] = [.lobby, .deck, .library]
-        for i in 0..<3 {
-            let tab = UIButton(frame: CGRect(x: CGFloat(i) * width / 3, y: 1, width: width / 3, height: 67))
+        let titles = ["Adventure", "Contracts", "Deck", "Collection"], icons = ["mountain.2.fill", "suit.spade.fill", "rectangle.on.rectangle.angled", "book.closed.fill"]
+        let pages: [Screen] = [.lobby, .contracts, .deck, .library]
+        for i in 0..<4 {
+            let tab = UIButton(frame: CGRect(x: CGFloat(i) * width / 4, y: 1, width: width / 4, height: 67))
             let active = screen == pages[i]
             if active {
                 tab.backgroundColor = UIColor(hex: 0x213C9A)
-                let glow = UIView(frame: CGRect(x: 23, y: 0, width: width / 3 - 46, height: 3)); glow.backgroundColor = Palette.cyan; tab.addSubview(glow)
+                let glow = UIView(frame: CGRect(x: 23, y: 0, width: width / 4 - 46, height: 3)); glow.backgroundColor = Palette.cyan; tab.addSubview(glow)
             }
             let iv = UIImageView(image: UIImage(systemName: icons[i]) ?? UIImage(systemName: "map.fill")); iv.tintColor = active ? Palette.cyan : Palette.quiet
             iv.contentMode = .scaleAspectFit; iv.frame = CGRect(x: tab.bounds.midX - 13, y: 9, width: 26, height: 25); tab.addSubview(iv)
@@ -188,7 +203,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         view.addSubview(navigation)
     }
     @objc private func tabTapped(_ sender: UIButton) {
-        let destination: Screen = [.lobby, .deck, .library][sender.tag]
+        let destination: Screen = [.lobby, .contracts, .deck, .library][sender.tag]
         guard destination != screen else { return }
         if screen == .deck, let draft = draftDeck, draft != store.state.deck {
             let alert = UIAlertController(title: "Unsaved Deck", message: "Your saved deck will take effect in your next battle.", preferredStyle: .alert)
@@ -346,9 +361,11 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     }
 
     private func buildBattle() -> CGFloat {
-        guard let battle = store.state.battle else { screen = .lobby; return buildLobby() }
-        let compact = scroll.bounds.height < 710
-        let enemyY: CGFloat = compact ? 52 : 64
+        guard let battle = store.state.activeBattle else { screen = .lobby; return buildLobby() }
+        let compact = scroll.bounds.height < (store.state.contract == nil ? 710 : 820)
+        let contract = store.state.contract
+        let smallContract = contract != nil && scroll.bounds.height < 680
+        let enemyY: CGFloat = (compact ? 52 : 64) + (contract == nil ? 0 : 67)
         let enemyH: CGFloat = compact ? 94 : 120
         let laneY = enemyY + enemyH + 14
         button("", CGRect(x: 16, y: 5, width: 42, height: 40), icon: "chevron.left") { [weak self] in self?.leaveBattle() }.accessibilityLabel = "Back to Lobby"
@@ -358,6 +375,18 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         let info = UIButton(frame: CGRect(x: 64, y: 29, width: width - 128, height: 23))
         info.accessibilityLabel = "Level rules and challenges"; info.accessibilityIdentifier = "encounterInfo"
         info.addTarget(self, action: #selector(showEncounterInfo), for: .touchUpInside); content.addSubview(info)
+        if let contract {
+            label("♠ \(contract.risk.name) · Round \(contract.round + 1)/3 · Stake \(contract.stake)", CGRect(x: 18, y: 55, width: inner, height: 22), size: 13, color: Palette.yellow)
+            label("Win: \(contract.payout) gold · Lose: 0", CGRect(x: 18, y: 81, width: inner - 148, height: 26), size: 11, color: Palette.quiet)
+            let boost = button("−3 HP / +2 ϟ", CGRect(x: width - 158, y: 79, width: 140, height: 30)) { [weak self] in
+                guard let self = self, var current = self.store.state.activeBattle, !self.settlingTurn, current.overdrive() else { return }
+                self.store.state.activeBattle = current; self.store.save(); self.feedback(.medium); self.redraw(preserveScroll: true)
+            }
+            boost.titleLabel?.font = Palette.font(12)
+            boost.isEnabled = battle.outcome == .playing && battle.playerHealth > 3 && battle.energy <= 3 && battle.overdriveTurn != battle.turn && !settlingTurn
+            boost.accessibilityIdentifier = "contract.overdrive"
+            boost.accessibilityLabel = "Overdrive: spend 3 health to gain 2 energy, once per turn"
+        }
         let enemy = GamePanel(color: UIColor(hex: 0x253991)); enemy.frame = CGRect(x: 16, y: enemyY, width: inner, height: enemyH); content.addSubview(enemy)
         _ = art(9 + battle.stageIndex, CGRect(x: 7, y: 7, width: enemyH - 14, height: enemyH - 14), parent: enemy, radius: 14)
         label(battle.stage.enemy, CGRect(x: enemyH + 9, y: compact ? 6 : 11, width: inner - enemyH - 23, height: 26), size: 21, parent: enemy, weight: .heavy)
@@ -366,7 +395,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         let intent = label(battle.enemyStatus, CGRect(x: enemyH + 8, y: compact ? 62 : 76, width: inner - enemyH - 23, height: compact ? 25 : 33), size: 12, color: UIColor(hex: 0xFFF0C1), align: .center, parent: enemy, weight: .heavy)
         intent.backgroundColor = UIColor(hex: 0xB2365D); intent.layer.cornerRadius = 10; intent.clipsToBounds = true
         let laneW = (inner - 16) / 3
-        let laneH = compact ? min(180, laneW * 1.35 + 57) : laneW * 1.35 + 57
+        let laneH = smallContract ? 140 : compact ? min(180, laneW * 1.35 + 57) : laneW * 1.35 + 57
         for lane in TimeLane.allCases {
             let laneView = LaneView(lane, card: battle.field[lane.rawValue])
             laneView.frame = CGRect(x: 16 + CGFloat(lane.rawValue) * (laneW + 8), y: laneY, width: laneW, height: laneH)
@@ -384,7 +413,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         let hintText = selectedCard.map { "\($0.name) · Tap a glowing slot" } ?? "Tap or drag a card into a time slot"
         label(hintText, CGRect(x: 16, y: hintY, width: inner, height: 22), size: 12, color: selectedCard == nil ? Palette.quiet : Palette.yellow, align: .center)
         let handY = hintY + (compact ? 31 : 41)
-        let cardW: CGFloat = min(112, inner * 0.295), cardH = cardW * (compact ? 1.30 : 1.42)
+        let cardW: CGFloat = min(smallContract ? 88 : 112, inner * 0.295), cardH = cardW * (compact ? 1.30 : 1.42)
         let n = battle.hand.count
         let spread = min(cardW * 0.79, (inner - cardW - 10) / CGFloat(max(1, n - 1)))
         let handWidth = cardW + CGFloat(max(0, n - 1)) * spread
@@ -435,16 +464,16 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     private func laneTapped(_ lane: TimeLane) {
         guard !settlingTurn else { return }
         guard let card = selectedCard else {
-            if let field = store.state.battle?.field[lane.rawValue] { showCardDetail(field.kind) }
+            if let field = store.state.activeBattle?.field[lane.rawValue] { showCardDetail(field.kind) }
             else { toast(lane.hint + " · Select a card first") }
             return
         }
         play(card, in: lane)
     }
     private func play(_ card: CardKind, in lane: TimeLane) {
-        guard var battle = store.state.battle, !settlingTurn else { return }
+        guard var battle = store.state.activeBattle, !settlingTurn else { return }
         if let error = battle.play(card, in: lane) { toast(error); return }
-        store.state.battle = battle; store.save(); selectedCard = nil
+        store.state.activeBattle = battle; store.save(); selectedCard = nil
         feedback(.medium)
         if battle.outcome == .won { showVictory(); return }
         redraw(preserveScroll: true)
@@ -465,7 +494,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
             copy.selectedCard = true; copy.isUserInteractionEnabled = false
             copy.center = CGPoint(x: point.x, y: point.y - 50)
             view.addSubview(copy); ghost = copy; source.alpha = 0.3; feedback()
-            for lane in lanes { lane.accepting = store.state.battle?.canPlay(source.kind, in: lane.lane) == nil }
+            for lane in lanes { lane.accepting = store.state.activeBattle?.canPlay(source.kind, in: lane.lane) == nil }
         case .changed:
             ghost?.center = CGPoint(x: point.x, y: point.y - 50)
         case .ended:
@@ -481,13 +510,13 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         // A hand card can be dragged diagonally to any lane. Direction filtering
         // rejects short first movements from touch and accessibility pointers.
-        return store.state.battle?.outcome == .playing && !settlingTurn
+        return store.state.activeBattle?.outcome == .playing && !settlingTurn
     }
     private func endTurn() {
-        guard var battle = store.state.battle, !settlingTurn, battle.outcome == .playing else { return }
+        guard var battle = store.state.activeBattle, !settlingTurn, battle.outcome == .playing else { return }
         toastView?.removeFromSuperview()
         toastGeneration += 1
-        battle.endTurn(); store.state.battle = battle; store.save(); selectedCard = nil
+        battle.endTurn(); store.state.activeBattle = battle; store.save(); selectedCard = nil
         feedback(.heavy)
         if battle.outcome == .won { showVictory(); return }
         settlingTurn = true; redraw(preserveScroll: true)
@@ -512,7 +541,8 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     }
 
     private func buildReward() -> CGFloat {
-        guard let battle = store.state.battle, battle.outcome == .won else { screen = .lobby; return buildLobby() }
+        if store.state.contract != nil { return buildContractResult() }
+        guard let battle = store.state.activeBattle, battle.outcome == .won else { screen = .lobby; return buildLobby() }
         let choices = store.state.rewards
         if choices.isEmpty { return buildClearSummary(battle) }
         let star = UILabel(frame: CGRect(x: 16, y: 6, width: inner, height: 41)); star.text = String(repeating: "★ ", count: battle.stars) + String(repeating: "☆ ", count: 3 - battle.stars)
@@ -548,7 +578,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         return detailY + 296
     }
     private func claimReward() {
-        guard store.state.battle?.outcome == .won else { return }
+        guard store.state.activeBattle?.outcome == .won else { return }
         let choices = store.state.rewards
         if choices.isEmpty { completeReward(nil, replacing: nil); return }
         guard let selected = selectedReward, choices.contains(selected) else { toast("Select a reward card first."); return }
@@ -561,7 +591,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         presentSheet(sheet)
     }
     private func completeReward(_ reward: CardKind?, replacing old: CardKind?) {
-        let completedFinal = store.state.battle?.stageIndex == Stage.all.count - 1
+        let completedFinal = store.state.activeBattle?.stageIndex == Stage.all.count - 1
         guard store.state.claimVictory(reward) else { return }
         if let reward = reward, let old = old, let i = store.state.deck.firstIndex(of: old) { store.state.deck[i] = reward }
         store.save()
@@ -570,8 +600,11 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     }
 
     private func startOrResume() {
-        if store.state.battle?.outcome == .won { showVictory(); return }
-        let isNewBattle = store.state.battle == nil || store.state.battle?.outcome == .lost
+        if let run = store.state.contract {
+            show(run.battle.outcome == .won ? .reward : run.battle.outcome == .lost ? .contracts : .battle); return
+        }
+        if store.state.activeBattle?.outcome == .won { showVictory(); return }
+        let isNewBattle = store.state.activeBattle == nil || store.state.activeBattle?.outcome == .lost
         if isNewBattle { store.state.startBattle(); store.save() }
         show(.battle)
         if !store.state.hasSeenRules {
@@ -582,11 +615,14 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         }
     }
     private func leaveBattle() {
-        if store.state.battle?.outcome == .lost { store.state.battle = nil }
+        if store.state.contract != nil { store.save(); show(.contracts); return }
+        if store.state.activeBattle?.outcome == .lost { store.state.activeBattle = nil }
         store.save(); show(.lobby)
         toast("Battle saved. Resume any time.")
     }
-    private func chooseStage() { levelPage = store.state.selectedStage / levelPageSize; show(.level) }
+    private func chooseStage() {
+        guard store.state.contract == nil else { show(.contracts); toast("Finish your contract to return to Adventure."); return }
+        levelPage = store.state.selectedStage / levelPageSize; show(.level) }
 
     private func buildLevels() -> CGFloat {
         button("Back", CGRect(x: 16, y: 8, width: 62, height: 38)) { [weak self] in self?.show(.lobby) }
@@ -644,10 +680,10 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         let change = { [weak self] in
             guard let self = self else { return }
             self.store.state.selectedHard = !self.store.state.viewingHard
-            self.store.state.battle = nil
+            self.store.state.activeBattle = nil
             self.store.save(); self.redraw()
         }
-        if store.state.battle != nil {
+        if store.state.activeBattle != nil {
             let alert = UIAlertController(title: "Change Difficulty?", message: "Your current battle will end. Collected cards and stars in both difficulties are kept.", preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "Keep Battle", style: .cancel))
             alert.addAction(UIAlertAction(title: "Change Difficulty", style: .destructive) { _ in change() })
@@ -656,7 +692,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
     }
     private func requestStage(_ index: Int) {
         guard index <= store.state.unlockedStage else { return }
-        if store.state.battle != nil {
+        if store.state.activeBattle != nil {
             let confirm = UIAlertController(title: "Start a New Battle?", message: "This replaces your current battle. Collected cards and cleared levels are kept.", preferredStyle: .alert)
             confirm.addAction(UIAlertAction(title: "Keep Battle", style: .cancel))
             confirm.addAction(UIAlertAction(title: "Change Level", style: .destructive) { [weak self] _ in self?.selectStage(index) })
@@ -664,7 +700,8 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         } else { selectStage(index) }
     }
     @objc private func showEncounterInfo() {
-        guard let battle = store.state.battle else { return }
+        guard let battle = store.state.activeBattle else { return }
+        if store.state.contract != nil { showContractRules(); return }
         let text = "\(battle.briefing)\n\nGoal: defeat the enemy.\nStars: win; finish with at least 12 HP; \(battle.stage.challenge).\n\n\(battle.isHard ? "Hard stars are separate. No repeat card rewards." : battle.stageIndex == 5 ? "Clear all 6 Normal levels to unlock Hard mode." : battle.stage.rewardMilestone ? "Choose a new card on your first clear." : "Your first clear unlocks the next level.")"
         let alert = UIAlertController(title: battle.stage.name, message: text, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Play", style: .default)); present(alert, animated: true)
@@ -684,31 +721,33 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         return compact ? 582 : 690
     }
     private func selectStage(_ index: Int) {
-        store.state.selectedStage = index; store.state.battle = nil; store.save(); show(.lobby)
+        store.state.selectedStage = index; store.state.activeBattle = nil; store.save(); show(.lobby)
     }
     private func showDefeatOverlay(afterLayout: Bool) {
         DispatchQueue.main.async { [weak self] in
-            guard let self = self, self.screen == .battle, self.store.state.battle?.outcome == .lost, self.presentedViewController == nil else { return }
-            let alert = UIAlertController(title: "Defeat", message: self.store.state.battle?.briefing, preferredStyle: .alert)
+            guard let self = self, self.screen == .battle, self.store.state.activeBattle?.outcome == .lost, self.presentedViewController == nil else { return }
+            if self.store.state.contract != nil { self.show(.contracts); return }
+            let alert = UIAlertController(title: "Defeat", message: self.store.state.activeBattle?.briefing, preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "Retry", style: .default) { [weak self] _ in
                 guard let self = self else { return }
                 self.store.state.startBattle(); self.store.save(); self.redraw()
             })
             alert.addAction(UIAlertAction(title: "Edit Deck", style: .default) { [weak self] _ in
-                self?.store.state.battle = nil; self?.store.save(); self?.show(.deck)
+                self?.store.state.activeBattle = nil; self?.store.save(); self?.show(.deck)
             })
             alert.addAction(UIAlertAction(title: "Back to Lobby", style: .cancel) { [weak self] _ in self?.leaveBattle() })
             self.present(alert, animated: true)
         }
     }
     private func showRules() {
+        if screen == .battle && store.state.contract != nil { showContractRules(); return }
         let message = "Defeat the enemy before you run out of HP.\n\nTap a card, then a time slot, or drag it there. Hold a card for details.\n\nPAST: units wait one turn, then gain +2 attack permanently.\nPRESENT: units attack this turn; spells act now.\nFUTURE: cards wait one turn, then double their first attack or spell effect.\n\nEnd Turn: your units attack, then the enemy attacks. If you survive, energy refills, waiting cards activate, and you draw 2 cards. Tap the level info for enemy rules.\n\nShield carries over. Maximum energy: 5. Hand limit: 6."
         let alert = UIAlertController(title: "Master the Timeline", message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: screen == .settings ? "Got It" : "Play", style: .default))
         present(alert, animated: true)
     }
     private func showBattleLog() {
-        let alert = UIAlertController(title: "Battle Log", message: store.state.battle?.log.suffix(14).joined(separator: "\n\n"), preferredStyle: .alert)
+        let alert = UIAlertController(title: "Battle Log", message: store.state.activeBattle?.log.suffix(14).joined(separator: "\n\n").replacingOccurrences(of: " chips", with: " gold"), preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Resume", style: .default)); present(alert, animated: true)
     }
     private func showSettings() {
@@ -823,5 +862,148 @@ final class CardDetailController: UIViewController {
         let close = GameButton("Got It", primary: true); close.titleLabel?.font = Palette.font(20, .heavy)
         close.frame = CGRect(x: 24, y: h - 67, width: w - 48, height: 47)
         close.onTap = { [weak self] in self?.dismiss(animated: true) }; panel.addSubview(close)
+    }
+}
+
+private extension ViewController {
+    func buildContracts() -> CGFloat {
+        if let run = store.state.contract {
+            if run.battle.outcome != .playing { return buildContractResult() }
+            title("Contract Live", frame: CGRect(x: 16, y: 10, width: inner, height: 60), size: 38)
+            label("Your next move decides the payout", CGRect(x: 16, y: 77, width: inner, height: 24), size: 14, color: Palette.quiet, align: .center)
+            _ = art(9 + run.round, CGRect(x: (width - 156) / 2, y: 127, width: 156, height: 156), radius: 26)
+            label("\(run.risk.name) · Round \(run.round + 1) of 3", CGRect(x: 16, y: 308, width: inner, height: 30), size: 23, color: Palette.yellow, align: .center)
+            let copy = label("\(run.stake) gold committed · Win this round: \(run.payout)\n\(run.battle.playerHealth) HP · Turn \(run.battle.turn)\nYour adventure is saved separately.", CGRect(x: 24, y: 355, width: width - 48, height: 85), size: 14, color: Palette.quiet, align: .center)
+            copy.numberOfLines = 3
+            button("Resume Contract", CGRect(x: 18, y: 460, width: inner - 4, height: 55), primary: true) { [weak self] in self?.show(.battle) }.accessibilityIdentifier = "contract.resume"
+            button("Contract Rules", CGRect(x: 18, y: 532, width: inner - 4, height: 44)) { [weak self] in self?.showContractRules() }
+            button("Abandon · Lose \(run.stake) gold", CGRect(x: 18, y: 594, width: inner - 4, height: 44)) { [weak self] in self?.confirmAbandonContract() }
+            return 658
+        }
+        let small = scroll.bounds.height < 650
+        func row(_ y: CGFloat) -> CGFloat {
+            guard small else { return y }
+            return [7: 2, 63: 51, 89: 78, 182: 151, 212: 179, 270: 235,
+                    300: 264, 436: 371, 472: 404, 502: 431, 523: 451,
+                    564: 484, 619: 527, 690: 588][y] ?? y
+        }
+        title("Fate Contracts", frame: CGRect(x: 16, y: row(7), width: inner, height: small ? 44 : 53), size: 36)
+        label("PLAY YOUR HAND. KNOW YOUR LIMIT.", CGRect(x: 16, y: row(63), width: inner, height: 20), size: 11, color: Palette.cyan, align: .center)
+        let wallet = GamePanel(color: UIColor(hex: 0x49347B))
+        wallet.frame = CGRect(x: 16, y: row(89), width: inner, height: small ? 63 : 81); content.addSubview(wallet)
+        label("GOLD BALANCE", CGRect(x: 16, y: 11, width: inner - 102, height: 18), size: 10, color: Palette.quiet, parent: wallet)
+        label("🪙 \(store.state.chips)", CGRect(x: 16, y: small ? 27 : 32, width: inner - 102, height: small ? 29 : 34), size: 28, color: Palette.yellow, parent: wallet, weight: .heavy)
+        button("Rules", CGRect(x: inner - 87, y: small ? 10 : 20, width: 72, height: 40), parent: wallet) { [weak self] in self?.showContractRules() }.accessibilityIdentifier = "contract.rules"
+        label("01  CHOOSE YOUR STAKE", CGRect(x: 18, y: row(182), width: inner, height: 22), size: 13, color: Palette.cyan)
+        let cell = (inner - 20) / 3
+        for (i, stake) in [25, 50, 100].enumerated() {
+            let b = button("🪙 \(stake)", CGRect(x: 16 + CGFloat(i) * (cell + 10), y: row(212), width: cell, height: 44), primary: stake == contractStake) { [weak self] in self?.contractStake = stake; self?.feedback(); self?.redraw(preserveScroll: true) }
+            b.isEnabled = store.state.chips >= stake
+            b.accessibilityIdentifier = "contract.stake.\(stake)"
+            b.accessibilityTraits = stake == contractStake ? [.button, .selected] : .button
+        }
+        label("02  PICK A RISK CONTRACT", CGRect(x: 18, y: row(270), width: inner, height: 22), size: 13, color: Palette.cyan)
+        for (i, risk) in ContractRisk.allCases.enumerated() {
+            let x = 16 + CGFloat(i) * (cell + 10)
+            let panel = GamePanel(color: risk == contractRisk ? UIColor(hex: 0x554083) : Palette.panel)
+            panel.frame = CGRect(x: x, y: row(300), width: cell, height: small ? 100 : 127); content.addSubview(panel)
+            label(["♧", "♢", "♠"][i], CGRect(x: 4, y: 4, width: cell - 8, height: small ? 27 : 38), size: 32, color: risk == contractRisk ? Palette.yellow : Palette.quiet, align: .center, parent: panel)
+            label(risk.name, CGRect(x: 4, y: small ? 33 : 47, width: cell - 8, height: 23), size: 14, align: .center, parent: panel)
+            label("Up to \(risk.payoutSteps[2] / 10)×", CGRect(x: 4, y: small ? 58 : 74, width: cell - 8, height: 23), size: 18, color: Palette.yellow, align: .center, parent: panel)
+            label(risk == contractRisk ? "SELECTED" : "TAP TO SELECT", CGRect(x: 4, y: small ? 83 : 104, width: cell - 8, height: 14), size: 8, color: Palette.cyan, align: .center, parent: panel)
+            let tap = UIButton(frame: panel.bounds)
+            tap.tag = i; tap.addTarget(self, action: #selector(contractRiskTapped(_:)), for: .touchUpInside)
+            tap.accessibilityLabel = "\(risk.name), \(risk.detail), maximum \(risk.payoutSteps[2] / 10) times stake"
+            tap.accessibilityIdentifier = "contract.risk.\(risk.rawValue)"
+            tap.accessibilityTraits = risk == contractRisk ? [.button, .selected] : .button
+            panel.addSubview(tap)
+        }
+        label(contractRisk.detail, CGRect(x: 16, y: row(436), width: inner, height: 24), size: 13, color: Palette.quiet, align: .center)
+        label("03  WIN. BANK. OR PRESS ON.", CGRect(x: 18, y: row(472), width: inner, height: 22), size: 13, color: Palette.cyan)
+        for i in 0..<3 {
+            let x = 16 + CGFloat(i) * (cell + 10)
+            label("ROUND \(i + 1)", CGRect(x: x, y: row(502), width: cell, height: 19), size: 10, color: Palette.quiet, align: .center)
+            label("🪙 \(contractStake * contractRisk.payoutSteps[i] / 10)", CGRect(x: x, y: row(523), width: cell, height: 31), size: 23, color: Palette.yellow, align: .center)
+        }
+        let note = label("Payout includes your stake. A defeat loses it all.\nHP carries over; your 6-card deck stays locked for the run.", CGRect(x: 18, y: row(564), width: inner - 4, height: small ? 31 : 43), size: 11, color: Palette.quiet, align: .center)
+        note.numberOfLines = 2
+        let start = button("Commit \(contractStake) · Start Contract", CGRect(x: 18, y: row(619), width: inner - 4, height: small ? 44 : 54), primary: true) { [weak self] in
+            guard let self = self, self.store.state.startContract(stake: self.contractStake, risk: self.contractRisk) else { return }
+            self.store.save(); self.show(.battle)
+        }
+        start.isEnabled = store.state.chips >= contractStake
+        start.accessibilityIdentifier = "contract.start"
+        var y: CGFloat = row(690)
+        if store.state.chips < 25 {
+            button("Free Gold Refill · +100", CGRect(x: 18, y: y, width: inner - 4, height: 44)) { [weak self] in
+                guard let self = self, self.store.state.refillPracticeChips() else { return }
+                self.contractStake = 25; self.store.save(); self.redraw()
+            }.accessibilityIdentifier = "contract.refill"
+            y += 62
+        }
+        label("Earned in play · No purchases or cash value", CGRect(x: 16, y: y, width: inner, height: 23), size: 11, color: Palette.quiet, align: .center)
+        y += 43
+        if let wallet = store.state.contractWallet, !wallet.history.isEmpty {
+            label("RECENT CONTRACTS · BEST \(wallet.bestRun)/3", CGRect(x: 18, y: y, width: inner, height: 22), size: 12, color: Palette.cyan); y += 34
+            for receipt in wallet.history.prefix(5) {
+                label("\(receipt.risk.name) · \(receipt.cleared)/3 cleared", CGRect(x: 18, y: y, width: inner - 82, height: 28), size: 13)
+                label("\(receipt.net >= 0 ? "+" : "")\(receipt.net)", CGRect(x: width - 93, y: y, width: 75, height: 28), size: 18, color: receipt.net >= 0 ? Palette.green : UIColor(hex: 0xFF8BB2), align: .right)
+                y += 37
+            }
+        }
+        return y + 20
+    }
+
+    @objc func contractRiskTapped(_ sender: UIButton) {
+        contractRisk = ContractRisk.allCases[sender.tag]; feedback(); redraw(preserveScroll: true)
+    }
+
+    func buildContractResult() -> CGFloat {
+        guard let run = store.state.contract else { return buildContracts() }
+        let won = run.battle.outcome == .won
+        title(won ? "Bank or Battle?" : "Contract Broken", frame: CGRect(x: 16, y: 12, width: inner, height: 62), color: won ? Palette.yellow : UIColor(hex: 0xFF8BB2), size: 35)
+        label(won ? (run.canContinue ? "A sure reward. A harder choice." : "Three victories. Contract complete!") : "The timeline keeps your stake.", CGRect(x: 16, y: 82, width: inner, height: 24), size: 14, color: Palette.quiet, align: .center)
+        _ = art(9 + run.round, CGRect(x: (width - 125) / 2, y: 127, width: 125, height: 125), radius: 26)
+        label(won ? "🪙 \(run.payout)" : "🪙 −\(run.stake)", CGRect(x: 16, y: 268, width: inner, height: 61), size: 49, color: won ? Palette.yellow : UIColor(hex: 0xFF8BB2), align: .center, weight: .heavy)
+        label(won ? "\(String(format: "%.1f", run.multiplier))× stake · Net +\(run.payout - run.stake)" : "Payout 0 · Virtual gold", CGRect(x: 16, y: 334, width: inner, height: 23), size: 14, color: Palette.quiet, align: .center)
+        label("\(run.risk.name) · Round \(run.round + 1)/3 · \(run.battle.playerHealth) HP", CGRect(x: 16, y: 369, width: inner, height: 26), size: 16, align: .center)
+        button(won ? "Bank \(run.payout) · End Contract" : "Close Contract", CGRect(x: 18, y: 419, width: inner - 4, height: 55), primary: true) { [weak self] in
+            guard let self = self, self.store.state.finishContract(bank: won) else { return }
+            self.contractStake = self.store.state.chips >= self.contractStake ? self.contractStake : 25
+            self.store.save(); self.show(.contracts)
+        }.accessibilityIdentifier = "contract.bank"
+        if won && run.canContinue {
+            let warning = label("Risk all \(run.payout) for \(run.nextPayout) gold\nNext: \(Stage.all[run.round + 1].name) · Enemy attack +\(run.risk.attackBonus)", CGRect(x: 18, y: 492, width: inner - 4, height: 49), size: 13, color: Palette.yellow, align: .center)
+            warning.numberOfLines = 2
+            button("Mend +6 HP · Continue", CGRect(x: 18, y: 559, width: inner - 4, height: 46)) { [weak self] in self?.pressContract(.mend) }.accessibilityIdentifier = "contract.mend"
+            button("Ward +8 Shield · Continue", CGRect(x: 18, y: 622, width: inner - 4, height: 46)) { [weak self] in self?.pressContract(.ward) }.accessibilityIdentifier = "contract.ward"
+            let note = label("Choose one boon. HP carries over (maximum 20).\nCards and energy reset; unused shield is cleared.", CGRect(x: 18, y: 684, width: inner - 4, height: 43), size: 11, color: Palette.quiet, align: .center)
+            note.numberOfLines = 2
+            return 748
+        }
+        label("Your adventure progress is safe.", CGRect(x: 18, y: 498, width: inner - 4, height: 26), size: 13, color: Palette.quiet, align: .center)
+        return 551
+    }
+
+    func pressContract(_ boon: ContractBoon) {
+        guard store.state.continueContract(boon: boon) else { return }
+        store.save(); show(.battle)
+    }
+
+    func confirmAbandonContract() {
+        guard let run = store.state.contract else { return }
+        let alert = UIAlertController(title: "Abandon Contract?", message: "Your committed \(run.stake) gold will be lost. You can resume later instead.", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "Keep Contract", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Abandon", style: .destructive) { [weak self] _ in
+            guard let self = self else { return }
+            self.store.state.finishContract(bank: false); self.store.save(); self.show(.contracts)
+        })
+        present(alert, animated: true)
+    }
+
+    func showContractRules() {
+        let text = "Commit 25, 50 or 100 gold coins to a three-battle run. Choose a risk level: higher risk adds enemy damage and raises payouts. Ruthless starts at 16 HP.\n\nWin a round to bank its total payout, including your stake, or risk it all on the next round. A defeat or abandonment pays zero. The third win must be banked. Payouts are rounded down to whole gold coins.\n\nHealth carries over. Before continuing, choose +6 HP (up to 20) or 8 starting shield. Cards and energy reset. Your deck is locked for the run.\n\nOverdrive trades 3 HP for 2 energy once per turn, up to 5 energy. It cannot be used at 3 HP or less. Enemy attacks are visible; combat has no hidden dice rolls.\n\nCampaign progress is separate. Gold cannot be bought or redeemed. If your balance falls below 25, claim a free 100-gold refill after ending the contract."
+        let alert = UIAlertController(title: "Fate Contracts", message: text, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "Got It", style: .default)); present(alert, animated: true)
     }
 }

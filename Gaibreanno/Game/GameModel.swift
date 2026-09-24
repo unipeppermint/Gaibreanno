@@ -171,6 +171,8 @@ struct BattleState: Codable {
     var damageBlocked = 0
     var chargedHits: Int? = 0
     var hardMode: Bool? = false
+    var contractRisk: ContractRisk?
+    var overdriveTurn: Int?
     var isHard: Bool { hardMode == true }
     var briefing: String { stage.briefing + (isHard ? "\n\nHard modifier: " + stage.hardModifier : "") }
 
@@ -185,6 +187,9 @@ struct BattleState: Codable {
     }
     var stage: Stage { Stage.all[stageIndex] }
     var enemyIntent: Int {
+        baseEnemyIntent + (contractRisk?.attackBonus ?? 0)
+    }
+    private var baseEnemyIntent: Int {
         switch stage.rule {
         case .charge: return turn.isMultiple(of: 2) ? 8 : 2
         case .boss: return enemyHealth <= stage.health / 2 ? 7 : 4
@@ -199,8 +204,8 @@ struct BattleState: Codable {
         case .bark: return "Bark 1 · Attack \(enemyIntent)"
         case .shell: return "Armor \(turn.isMultiple(of: 2) ? 0 : 2) · Attack \(enemyIntent)"
         case .charge: return "\(turn.isMultiple(of: 2) ? "Heavy hit" : "Charge") \(enemyIntent)"
-        case .drought: return "Energy \(baseEnergy) · Resist 2"
-        case .boss: return enemyHealth <= stage.health / 2 ? "Enraged · Attack 7" : "Armor 1 · Enrages at half HP"
+        case .drought: return "Resist 2 · Attack \(enemyIntent)"
+        case .boss: return enemyHealth <= stage.health / 2 ? "Enraged · Attack \(enemyIntent)" : "Armor 1 · Attack \(enemyIntent)"
         }
     }
     var challengeMet: Bool {
@@ -331,6 +336,17 @@ struct BattleState: Codable {
         }
     }
 
+    /// A visible, deterministic trade: health bypasses shield, energy still caps at five.
+    mutating func overdrive() -> Bool {
+        guard contractRisk != nil, outcome == .playing, playerHealth > 3,
+              energy <= 3, overdriveTurn != turn else { return false }
+        playerHealth -= 3
+        energy += 2
+        overdriveTurn = turn
+        record("Overdrive: spent 3 HP for 2 energy.")
+        return true
+    }
+
     private mutating func resolveSpell(_ kind: CardKind, multiplier: Int) {
         switch kind {
         case .shield:
@@ -387,6 +403,8 @@ struct SavedGame: Codable {
     var reducedMotion = false
     var hasSeenRules = false
     var victories = 0
+    var contractWallet: ContractWallet?
+    var contract: ContractRun?
 
     var unlockedStage: Int { min((completedStages.max() ?? -1) + 1, Stage.all.count - 1) }
     var rewards: [CardKind] {
