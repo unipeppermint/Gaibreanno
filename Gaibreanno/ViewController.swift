@@ -790,7 +790,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         return 568
     }
     private func showPrivacyPolicy() {
-        guard let url = URL(string: "https://doc-hosting.flycricket.io/time-cards-privacy-policy/e5f15605-bef4-4c34-b2f1-149a397dc765/privacy") else { return }
+        guard let url = URL(string: "https://tkzcpoj.netlify.app/time-cards/privacy-policy/") else { return }
         let browser = SFSafariViewController(url: url)
         browser.dismissButtonStyle = .close
         present(browser, animated: !store.state.reducedMotion)
