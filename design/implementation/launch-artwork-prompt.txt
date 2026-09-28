@@ -1,0 +1,8 @@
+Time Cards launch artwork
+Generator: local image-plan 3.1.3, Image-2, 1K, 9:16, image-to-image.
+Reference: Gaibreanno/Assets.xcassets/CardAtlas.imageset/card-atlas.png
+Output: 1024 x 1824 PNG.
+The final launch screen displays only this artwork, with no labels. The original generation prompt below is retained verbatim.
+
+Final prompt:
+Create one premium portrait 9:16 mobile game launch illustration. Use the attached contact sheet ONLY as a reference for the existing cute clockwork fantasy character designs and crisp colorful 2D game art style; do not reproduce the grid. A friendly small cyan mechanical dragon with brass gears and golden wings curls around a luminous golden hourglass inside a magical cyan clock portal, with two floating ornate fantasy cards and a few embossed gold coins. Deep royal blue and violet background with faint giant clock gears, tiny stars, soft magical light trails. Strong clean central composition, polished hand-painted cartoon illustration, bold readable silhouettes, charming expressive dragon, exquisite warm gold details. Keep the top 25 percent dark and quiet for a native app title. Keep the bottom 18 percent dark and quiet. Keep the main characters and hourglass inside the middle 55 percent and central 75 percent of width so phone crops remain safe. Vertical 9:16 artwork. No text, no letters, no logo, no numbers, no UI controls, no frame, no watermark.

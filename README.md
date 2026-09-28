@@ -93,9 +93,11 @@ xcodebuild -project Gaibreanno.xcodeproj \
 
 ## 美术资源
 
+启动页使用本地 image-plan 绘制的蓝紫色时空插画，主体为机械幼龙、沙漏、卡牌与金币。资源位于 `Gaibreanno/Assets.xcassets/LaunchArtwork.imageset`，生成提示词保存在 `design/implementation/launch-artwork-prompt.txt`。启动页只展示全屏插画，由系统自动衔接首页；没有额外文字、延时、覆盖层或自定义启动过渡。
+
 「能量风暴」已使用独立紫蓝雷暴插画与紫色卡框、雷云符号；「能量火花」保留黄色电光形象。新增资源由内置 ImageGen 生成，文件为 `Gaibreanno/Assets.xcassets/EnergyStorm.imageset/energy-storm.png`，提示词为 `design/implementation/energy-storm-prompt.txt`。所有卡牌页面共用同一资源映射。
 
-卡牌插画图集、敌人图集与应用图标由内置 ImageGen 生成，已保存为项目内资源。完整提示词分别保存在 `design/implementation/card-art-prompt.txt` 与 `design/implementation/icon-prompt.txt`。第一章敌人提示词位于 `design/implementation/enemy-art-prompt.txt`，成品位于 `Gaibreanno/Assets.xcassets/EnemyAtlas.imageset/enemy-atlas.png`。App Icon 已规范为 iOS 资源目录要求的 1024 × 1024 像素。
+卡牌插画图集、敌人图集由内置 ImageGen 生成，已保存为项目内资源。卡牌提示词保存在 `design/implementation/card-art-prompt.txt`。第一章敌人提示词位于 `design/implementation/enemy-art-prompt.txt`，成品位于 `Gaibreanno/Assets.xcassets/EnemyAtlas.imageset/enemy-atlas.png`。当前 App Icon 使用用户提供的 `五图1  09.28/1.png`，保留原有画面并规范为 1024 × 1024、不含 Alpha 通道的 PNG；旧图标提示词保留在 `design/implementation/icon-prompt.txt` 作为历史资料。
 
 ## 版本范围
 
