@@ -17,3 +17,6 @@ xcuserdata/
 
 # Swift Package Manager build output
 .build/
+
+# CocoaPods dependencies are restored with pod install
+Pods/

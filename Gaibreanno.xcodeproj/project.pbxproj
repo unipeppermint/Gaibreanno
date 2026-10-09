@@ -6,8 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		DD9496B4EE85C6AC8656FD56 /* libPods-Gaibreanno.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EE2EA34844FC1755D2A147D3 /* libPods-Gaibreanno.a */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		049D9640306289F60065AE7B /* Gaibreanno.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Gaibreanno.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		60AD6A342E09C06DFC313732 /* Pods-Gaibreanno.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Gaibreanno.debug.xcconfig"; path = "Target Support Files/Pods-Gaibreanno/Pods-Gaibreanno.debug.xcconfig"; sourceTree = "<group>"; };
+		63798203ABF59921CC58D5A5 /* Pods-Gaibreanno.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Gaibreanno.release.xcconfig"; path = "Target Support Files/Pods-Gaibreanno/Pods-Gaibreanno.release.xcconfig"; sourceTree = "<group>"; };
+		EE2EA34844FC1755D2A147D3 /* libPods-Gaibreanno.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Gaibreanno.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -36,6 +43,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DD9496B4EE85C6AC8656FD56 /* libPods-Gaibreanno.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -47,6 +55,8 @@
 			children = (
 				049D9642306289F60065AE7B /* Gaibreanno */,
 				049D9641306289F60065AE7B /* Products */,
+				F8A745FFD92584A6FDC79700 /* Pods */,
+				D4DE82443F99A6EB50BFB3EC /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -58,6 +68,23 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		D4DE82443F99A6EB50BFB3EC /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				EE2EA34844FC1755D2A147D3 /* libPods-Gaibreanno.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		F8A745FFD92584A6FDC79700 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				60AD6A342E09C06DFC313732 /* Pods-Gaibreanno.debug.xcconfig */,
+				63798203ABF59921CC58D5A5 /* Pods-Gaibreanno.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -65,9 +92,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 049D9653306289F70065AE7B /* Build configuration list for PBXNativeTarget "Gaibreanno" */;
 			buildPhases = (
+				1E16CF3161A2F634EC3D6463 /* [CP] Check Pods Manifest.lock */,
 				049D963C306289F60065AE7B /* Sources */,
 				049D963D306289F60065AE7B /* Frameworks */,
 				049D963E306289F60065AE7B /* Resources */,
+				48C4CAB0253F23D6EC539A03 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -77,8 +106,6 @@
 				049D9642306289F60065AE7B /* Gaibreanno */,
 			);
 			name = Gaibreanno;
-			packageProductDependencies = (
-			);
 			productName = Gaibreanno;
 			productReference = 049D9640306289F60065AE7B /* Gaibreanno.app */;
 			productType = "com.apple.product-type.application";
@@ -127,6 +154,53 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		1E16CF3161A2F634EC3D6463 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-Gaibreanno-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		48C4CAB0253F23D6EC539A03 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Gaibreanno/Pods-Gaibreanno-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			inputPaths = (
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Gaibreanno/Pods-Gaibreanno-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
+				"${PODS_ROOT}/resources-to-copy-${TARGETNAME}.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Gaibreanno/Pods-Gaibreanno-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		049D963C306289F60065AE7B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -140,11 +214,13 @@
 /* Begin XCBuildConfiguration section */
 		049D9654306289F70065AE7B /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 60AD6A342E09C06DFC313732 /* Pods-Gaibreanno.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Gaibreanno/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -176,11 +252,13 @@
 		};
 		049D9655306289F70065AE7B /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 63798203ABF59921CC58D5A5 /* Pods-Gaibreanno.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Gaibreanno/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
