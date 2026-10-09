@@ -1,7 +1,11 @@
 platform :ios, '14.0'
 
 target 'Gaibreanno' do
+  use_modular_headers!
   pod 'Alamofire', '~> 5.10'
+  # Firebase 11 preserves the project's iOS 14 deployment target.
+  pod 'FirebaseCore', '~> 11.0'
+  pod 'FirebaseMessaging', '~> 11.0'
 end
 
 # Declare CocoaPods' temporary resource list while keeping Xcode script sandboxing enabled.

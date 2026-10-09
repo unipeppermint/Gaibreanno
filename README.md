@@ -128,3 +128,22 @@ window.webkit.messageHandlers.open.postMessage({ url: 'https://example.com' });
 `//example.com/path` 和 `example.com/path` 自动补充 HTTPS；非法参数、非 HTTP(S) 协议和包含用户名密码的 URL 会被忽略。
 桥接采用弱引用代理，并在控制器释放时移除消息处理器。外部浏览器跳转不修改当前 WebView 的缓存 URL。
 此协议与参考文件相同，为 JS 调用原生的单向消息，不包含 JS 回调。
+
+### Firebase 推送（CocoaPods）
+
+`Podfile` 引入 `FirebaseCore` 和 `FirebaseMessaging` 11.x（锁定版本见 `Podfile.lock`），保留 iOS 14 支持。
+运行 `pod install` 后打开 `Gaibreanno.xcworkspace`。
+
+- 实现在 `Gaibreanno/Config/PushNotificationManager.swift`；AppDelegate 初始化服务并转交 APNs 注册结果。
+- 点击启动弹窗的 Continue 后请求通知权限，允许后注册 APNs，手动关联 APNs Token 与 FCM Token。前台通知显示横幅、列表、声音和角标；点击通知会发布 `notificationWasOpened`，并在 `lastOpenedNotification` 保存最近一次点击的载荷，便于启动完成后读取。
+- `currentToken` 提供当前 FCM Token，`tokenDidChange` 通知的 `userInfo["token"]` 提供刷新后的 Token。Debug 控制台输出 Token，供 Firebase 控制台测试；当前未提供业务服务端 Token 上传接口，因此尚未上传至业务后端。
+- 已开启 Push Notifications capability 并添加 APNs entitlement。保留原 Bundle ID、签名团队和部署版本。开发 entitlement 使用 development，分发环境由 Xcode 签名/导出时根据 provisioning profile 处理。
+- 此次实现普通通知推送，不启用静默推送后台任务，不自动按通知载荷跳转网页。
+
+真机联调前需要：
+
+1. 将 `Gaibreanno/Resources/GoogleService-Info.plist` 替换为 Firebase 中 Bundle ID 为 `com.cvlc.Gaibreanno` 的 iOS 应用配置。当前提供的文件为 `com.aqej.dxsbcm`，初始化会检查并跳过不匹配配置，避免误连接其他应用。
+2. 在 Apple Developer 的对应 App ID 启用 Push Notifications，使用包含推送权限的签名描述文件；在 Firebase 项目设置 → Cloud Messaging 上传该团队的 APNs authentication key（并填写 Key ID、Team ID）。
+3. 使用签名真机安装，点击 Continue 并允许通知；从 Debug 控制台取得 FCM Token，通过 Firebase 控制台发送测试通知，检查前台、后台与退出后点击通知。
+
+集成参考：https://firebase.google.com/docs/cloud-messaging/ios/get-started

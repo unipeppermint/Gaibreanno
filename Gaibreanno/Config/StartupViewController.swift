@@ -78,6 +78,7 @@ final class StartupViewController: UIViewController {
 
     private func enterApplication() {
         guard ready, let window = view.window else { return }
+        PushNotificationManager.shared.requestAuthorizationAndRegister()
         if let destinationURL {
             let browser = StartupWebViewController(url: destinationURL, store: store)
             window.rootViewController = browser
