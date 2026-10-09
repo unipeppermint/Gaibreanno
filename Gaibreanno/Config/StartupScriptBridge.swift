@@ -1,7 +1,7 @@
 import Foundation
 
 /// JavaScript: window.webkit.messageHandlers.openSafari.postMessage(urlOrObject)
-/// `open` is an alias with the same behavior: open an HTTP(S) URL externally.
+/// `open` is an alias with the same behavior: open an HTTPS URL externally.
 enum StartupScriptBridge {
     static let names = ["openSafari", "open"]
 

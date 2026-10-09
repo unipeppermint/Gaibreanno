@@ -5,9 +5,11 @@ enum StartupConfiguration {
     static let username = "com.aqej.dxsbcm"
     static let defaultPrivacyURL = URL(string: "https://tkzcpoj.netlify.app/time-cards/privacy-policy/")!
 
+    // Shared by startup responses, cached URLs, WebView navigation and the JS bridge.
+    // Reject HTTP rather than silently rewriting it or relaxing ATS.
     static func webURL(_ value: String) -> URL? {
         guard let url = URL(string: value.trimmingCharacters(in: .whitespacesAndNewlines)),
-              let scheme = url.scheme?.lowercased(), ["https", "http"].contains(scheme),
+              url.scheme?.lowercased() == "https",
               let host = url.host, !host.isEmpty, url.user == nil, url.password == nil else { return nil }
         return url
     }

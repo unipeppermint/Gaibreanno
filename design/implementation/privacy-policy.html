@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Privacy Policy for Time Cards, an offline card strategy game.">
+  <meta name="description" content="Privacy Policy for Time Cards, covering local game data, online content, and push notifications.">
   <title>Privacy Policy · Time Cards</title>
   <style>
     :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #202944; background: #f4f6fb; }
@@ -18,6 +18,8 @@
     p { margin: 0 0 16px; }
     ul { padding-left: 24px; margin: 0 0 16px; }
     li + li { margin-top: 6px; }
+    a { color: #344ab0; text-underline-offset: 3px; overflow-wrap: anywhere; }
+    a:focus-visible { outline: 2px solid #344ab0; outline-offset: 4px; }
     .contact { padding: 18px 20px; background: #f1f4ff; border-radius: 12px; overflow-wrap: anywhere; }
     .contact p:last-child { margin-bottom: 0; }
     @media (max-width: 540px) {
@@ -37,66 +39,90 @@
     <header>
       <p class="brand">Time Cards</p>
       <h1>Privacy Policy</h1>
-      <p class="date">Effective Date: <time datetime="2026-09-24">September 24, 2026</time></p>
+      <p class="date">Effective Date: <time datetime="2026-10-09">October 9, 2026</time></p>
     </header>
 
-    <p>Time Cards is an offline card strategy game. This Privacy Policy explains how information is handled when you use the app. “We,” “us,” and “our” refer to the operator of Time Cards.</p>
-
-    <section aria-labelledby="collection">
-      <h2 id="collection">1. Information Collection</h2>
-      <p>Time Cards does not collect or transmit personal information to us during gameplay. No account, name, email address, or other personal details are required to play.</p>
-      <p>The app does not include advertising, tracking technologies, or third-party analytics SDKs.</p>
-    </section>
+    <p>This Privacy Policy explains how Time Cards handles information when you use its native game, online content, notification features, and support services. “We,” “us,” and “our” refer to the operator of Time Cards, reachable at the contact address below.</p>
+    <p>The native card game stores progress on your device and does not require a player account. The app also connects to online services at startup, can display web content, and supports optional push notifications. These online features involve information processing as described below.</p>
 
     <section aria-labelledby="local-data">
-      <h2 id="local-data">2. Local Game Data</h2>
-      <p>The app stores the following information on your device:</p>
+      <h2 id="local-data">1. Information Stored on Your Device</h2>
+      <p>The native app stores the following information locally to provide its features:</p>
       <ul>
-        <li>Your card collection and selected deck.</li>
-        <li>Level completion, difficulty selections, and star ratings.</li>
-        <li>Your current battle and battle history.</li>
-        <li>Preferences, including haptic feedback and reduced motion.</li>
+        <li>Your card collection, selected deck, level progress, difficulty choices, and scores.</li>
+        <li>Your current battle, battle history, and game preferences, including haptic feedback and reduced motion.</li>
+        <li>The read status of messages in the app’s notification inbox. The bundled welcome message is local content and does not require push notification permission.</li>
+        <li>A recently opened web address, so the app can reopen web content if its startup service is unavailable.</li>
       </ul>
-      <p>This information is used to save your progress, resume battles, and apply your preferences. We do not receive or have remote access to your saved game data.</p>
+      <p>The native game does not currently upload your saved game progress or local inbox read status to our server. Web content has separate storage and network behavior, described in Section 3.</p>
     </section>
 
-    <section aria-labelledby="sharing">
-      <h2 id="sharing">3. Data Sharing and Backups</h2>
-      <p>We do not sell, rent, or share your gameplay data or use it for advertising.</p>
-      <p>Time Cards does not provide its own cloud storage service. Depending on your device settings, app data may be included in backups managed by Apple or your computer. These backups are governed by the services you use.</p>
+    <section aria-labelledby="startup">
+      <h2 id="startup">2. Startup Connection and Network Information</h2>
+      <p>When the app opens, it contacts our startup service at <strong>scqelfhta.top</strong> to obtain the address of the privacy policy page, so you can review the policy within the app.</p>
+      <p>This request includes a fixed application identifier. Although the service calls this parameter a username, it is not a username you enter, a personal account, or an identifier unique to you. The request does not include your locally saved game progress.</p>
+      <p>Network services receive your IP address and the information needed to handle a connection. Our startup service and hosting providers may also process request times, requested resources, client or browser information, and error or security logs to deliver content, maintain availability, and protect the service. This connection takes place during startup, before you press Continue on the privacy notice.</p>
     </section>
 
-    <section aria-labelledby="deletion">
-      <h2 id="deletion">4. Data Retention and Deletion</h2>
-      <p>Game data is stored locally until the app and its data are deleted or the data is otherwise removed.</p>
-      <p>To remove local game data, choose <strong>Delete App</strong> in iOS Settings. Choosing <strong>Offload App</strong> retains the app’s documents and data.</p>
-      <p>Deleting the app may not remove data from existing device backups. You can manage backups through the relevant Apple or computer backup settings. Restoring a backup may restore your saved game data.</p>
+    <section aria-labelledby="web-content">
+      <h2 id="web-content">3. Web Content and External Links</h2>
+      <p>The app can display online pages in an embedded browser and open links in your device’s default browser. When a page loads, its operator and any services used by that page may receive your IP address, browser or device information, and information you choose to submit or generate through your interactions.</p>
+      <p>Web pages may use cookies, local storage, cached resources, or similar browser features to remember preferences, maintain sessions, and provide their services. Information handling depends on the page and the features you use. Review any privacy or cookie notices provided by the page, particularly before signing in or submitting personal information.</p>
+      <p>This policy covers our handling of information. Where another organization operates a linked service, its privacy notice also applies to its handling of your information. Opening a page in an external browser does not give Time Cards access to that browser’s general browsing history.</p>
+    </section>
+
+    <section aria-labelledby="push">
+      <h2 id="push">4. Push Notifications and Firebase</h2>
+      <p>Time Cards uses Apple Push Notification service (APNs) and Google Firebase Cloud Messaging (FCM) to support remote notifications. The app requests your permission to display notifications. You can decline permission and continue using the native game and local notification inbox.</p>
+      <p>To register an installation and deliver notifications, these services process push tokens and an app installation identifier. Firebase also processes technical information associated with messaging and service operation, which may include app and operating system versions, device information, language, time zone, and diagnostic information. These identifiers allow messages to reach a particular app installation; they are not your player name or email address.</p>
+      <p>Firebase and its supporting components may retain installation information and tokens for service operation and renewal. Notification content and the information associated with a notification you open are made available to the app to handle that interaction. The native app does not currently upload its local notification inbox history to a separate business server.</p>
+      <p>You can change notification permission in <strong>iOS Settings → Notifications → Time Cards</strong>. Turning off notification display does not itself delete previously created Firebase installation records or tokens.</p>
+      <p>For additional information, see <a href="https://firebase.google.com/support/privacy">Firebase Privacy and Security</a>, <a href="https://firebase.google.com/docs/ios/app-store-data-collection">Firebase’s Apple-platform data disclosures</a>, and <a href="https://www.apple.com/legal/privacy/">Apple’s Privacy Policy</a>.</p>
+    </section>
+
+    <section aria-labelledby="purposes">
+      <h2 id="purposes">5. Purposes and Service Providers</h2>
+      <p>Information described in this policy is used to save local progress and preferences, load online content, deliver permitted notifications, respond to support requests, and operate and secure the associated services.</p>
+      <p>Relevant providers include Apple for platform and push notification services, Google Firebase for messaging and installation services, the providers hosting our startup service and web content, and our email provider when you contact support. A provider may process information in a country other than the one where you live, subject to its applicable terms and privacy practices.</p>
+      <p>The native app does not include advertising SDKs or Google Analytics. This statement does not describe every website that may be opened through the app; consult the notices for those services for information about their analytics, advertising, or other processing.</p>
+    </section>
+
+    <section aria-labelledby="retention">
+      <h2 id="retention">6. Retention, Deletion, and Backups</h2>
+      <p>Native game saves, preferences, inbox read status, and cached web addresses remain on your device until replaced, reset, or removed with the app. Embedded browser storage can also remain between sessions.</p>
+      <p>To remove the app and its local data, choose <strong>Delete App</strong> in iOS Settings. <strong>Offload App</strong> retains documents and data. Deleting the app does not necessarily delete information already held by service providers, external websites, your external browser, or your backups.</p>
+      <p>Apple or computer backups may include local app data, depending on your settings. Restoring a backup can restore that data. Manage backups and external browser data through the relevant system or browser settings.</p>
+      <p>Retention of server logs, messaging records, and provider-held information depends on the service, the purpose of processing, and applicable retention requirements. Firebase’s retention practices are described in its <a href="https://firebase.google.com/support/privacy">Privacy and Security documentation</a>. Contact us for questions or requests concerning information handled through Time Cards; requests involving another service may also need to be directed to that provider.</p>
     </section>
 
     <section aria-labelledby="support">
-      <h2 id="support">5. Support Communications</h2>
-      <p>If you contact us by email, we receive your email address and the information you choose to provide. We use this information only to respond to your request and resolve support issues.</p>
-      <p>Support messages are processed through our email service provider. We retain them only as long as reasonably necessary to handle your request or meet applicable legal obligations. You may request deletion by contacting the email address below.</p>
-      <p>Please do not include sensitive personal information in support messages.</p>
+      <h2 id="support">7. Support and Your Choices</h2>
+      <p>If you contact us, we receive your email address and the information you include. Support correspondence is processed through our email provider to answer your questions and resolve your request. Please do not send passwords, payment credentials, or other unnecessary sensitive information.</p>
+      <p>Depending on the law that applies to you, you may have rights to request access, correction, deletion, or a copy of personal information, or to object to or restrict certain processing. Contact us using the address below. We may need information reasonably necessary to identify the relevant records and verify a request; we do not ask for your password.</p>
+      <p>You can also control notification permissions, delete local app data, and manage browser storage using the device and browser controls described above. We cannot directly retrieve native game saves that have remained only on your device.</p>
     </section>
 
     <section aria-labelledby="children">
-      <h2 id="children">6. Children’s Privacy</h2>
-      <p>Time Cards does not collect personal information from players through the app, including children, and does not contain advertising or tracking.</p>
-      <p>If you believe a child has sent personal information to us through a support message, please contact us so we can review and delete it as appropriate.</p>
+      <h2 id="children">8. Children’s Privacy</h2>
+      <p>The native game does not ask players to provide a name, date of birth, or email address. Online connections and notification services can nevertheless process technical information as described in this policy.</p>
+      <p>If you are a parent or guardian and believe a child has provided personal information through Time Cards or a support request, contact us so we can investigate and address the request. Please review the privacy notices and age requirements of any external services before allowing a child to use them.</p>
+    </section>
+
+    <section aria-labelledby="security">
+      <h2 id="security">9. Security</h2>
+      <p>The configured startup service and privacy policy page use HTTPS. The security and storage practices of web pages and service providers also affect information handled through those features. No method of transmission or storage can be guaranteed completely secure.</p>
     </section>
 
     <section aria-labelledby="changes">
-      <h2 id="changes">7. Changes to This Policy</h2>
-      <p>We may update this policy when the app’s features or information-handling practices change. Updates will be reflected in the effective date above. Where required, we will provide additional notice or obtain consent.</p>
+      <h2 id="changes">10. Changes to This Policy</h2>
+      <p>We may update this policy when app features or information-handling practices change. The effective date above identifies the current version. Where required, we will provide additional notice or request consent.</p>
     </section>
 
     <section aria-labelledby="contact">
-      <h2 id="contact">8. Contact Us</h2>
+      <h2 id="contact">11. Contact Us</h2>
       <div class="contact">
-        <p>For privacy questions or requests to delete support correspondence, please contact:</p>
-        <!-- Replace the placeholder with a working support email before publishing. -->
-        <p>Email: <strong>trandb@koiedu.lol</strong></p>
+        <p>For privacy questions or requests concerning Time Cards, contact:</p>
+        <p>Email: <a href="mailto:trandb@koiedu.lol">trandb@koiedu.lol</a></p>
       </div>
     </section>
   </main>
