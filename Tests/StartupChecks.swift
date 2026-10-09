@@ -22,6 +22,18 @@ struct StartupChecks {
         precondition(store.lastURL == website, "Policy must not replace fallback URL")
         store.save(URL(string: "file:///tmp/a")!)
         precondition(store.lastURL == website)
+        for body: Any in [" https://example.com/path ", "//example.com/path", "example.com/path",
+                          ["url": "https://example.com/path"], ["href": "https://example.com/path"],
+                          ["link": "https://example.com/path"], ["target": "https://example.com/path"],
+                          ["url": "javascript:alert(1)", "href": "https://example.com/path"]] {
+            precondition(StartupScriptBridge.externalURL(from: body)?.absoluteString == "https://example.com/path")
+        }
+        for body: Any in [42, NSNull(), ["url": 42], ["other": "https://example.com"], "",
+                          "javascript:alert(1)", "file:///tmp/a.html", "data:text/html,a.b", "/relative.html",
+                          "https://user:pass@example.com"] {
+            precondition(StartupScriptBridge.externalURL(from: body) == nil)
+        }
+        print("JavaScript bridge payload and URL validation checks passed")
         print("Startup URL validation, classification and persistence checks passed")
     }
 }

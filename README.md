@@ -114,3 +114,17 @@ xcodebuild -project Gaibreanno.xcodeproj \
 - 进入业务 WebView 时保存入口地址，网页加载成功后更新当前地址；隐私政策浏览不覆盖业务缓存。下次请求失败、响应无效或地址为空时使用缓存，没有缓存则进入原生主界面。
 - 默认隐私政策使用项目原有地址。仅保存业务 URL，不保存接口响应和登录凭据。
 - `zsh scripts/check-startup.sh` 检查 URL 校验、分类及缓存持久化。Podfile 的 post-integrate hook 声明资源脚本的临时输出，保留 Xcode 脚本沙盒。
+
+### JavaScript 调用 iOS
+
+WebView 支持以下两个消息名，行为与参考文件一致：均调用系统默认浏览器打开 HTTP(S) 链接。
+
+```javascript
+window.webkit.messageHandlers.openSafari.postMessage('https://example.com');
+window.webkit.messageHandlers.open.postMessage({ url: 'https://example.com' });
+```
+
+对象参数也支持 `href`、`link`、`target` 字段，依此顺序（`url` 优先）选取有效链接。
+`//example.com/path` 和 `example.com/path` 自动补充 HTTPS；非法参数、非 HTTP(S) 协议和包含用户名密码的 URL 会被忽略。
+桥接采用弱引用代理，并在控制器释放时移除消息处理器。外部浏览器跳转不修改当前 WebView 的缓存 URL。
+此协议与参考文件相同，为 JS 调用原生的单向消息，不包含 JS 回调。

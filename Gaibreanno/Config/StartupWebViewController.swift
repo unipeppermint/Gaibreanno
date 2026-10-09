@@ -4,7 +4,15 @@ import WebKit
 final class StartupWebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     private let initialURL: URL
     private let store: StartupURLStore?
-    private let webView = WKWebView()
+    private let userContentController = WKUserContentController()
+    private lazy var webView: WKWebView = {
+        let handler = StartupWeakScriptMessageHandler(target: self)
+        StartupScriptBridge.names.forEach { userContentController.add(handler, name: $0) }
+        let configuration = WKWebViewConfiguration()
+        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        configuration.userContentController = userContentController
+        return WKWebView(frame: .zero, configuration: configuration)
+    }()
     private var entered = false
     var onClose: (() -> Void)?
 
@@ -12,6 +20,10 @@ final class StartupWebViewController: UIViewController, WKNavigationDelegate, WK
         initialURL = url
         self.store = store
         super.init(nibName: nil, bundle: nil)
+    }
+
+    deinit {
+        StartupScriptBridge.names.forEach { userContentController.removeScriptMessageHandler(forName: $0) }
     }
 
     required init?(coder: NSCoder) { fatalError("Use init(url:store:)") }
@@ -87,5 +99,26 @@ final class StartupWebViewController: UIViewController, WKNavigationDelegate, WK
         alert.addAction(UIAlertAction(title: "Retry", style: .default) { [weak self] _ in self?.retry() })
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         present(alert, animated: true)
+    }
+}
+
+
+extension StartupWebViewController: WKScriptMessageHandler {
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.webView === webView,
+              StartupScriptBridge.names.contains(message.name),
+              let url = StartupScriptBridge.externalURL(from: message.body) else { return }
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+    }
+}
+
+/// WKUserContentController retains handlers; the weak target prevents a controller retain cycle.
+private final class StartupWeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+    weak var target: WKScriptMessageHandler?
+
+    init(target: WKScriptMessageHandler) { self.target = target }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        target?.userContentController(userContentController, didReceive: message)
     }
 }
