@@ -110,9 +110,11 @@ xcodebuild -project Gaibreanno.xcodeproj \
 
 - POST `https://scqelfhta.top/v2/api/user/login`，表单参数 `username=com.aqej.dxsbcm`，超时 15 秒；解析 `code == 1` 的 `data.path`。
 - 等待页直接嵌入 `LaunchScreen.storyboard`，展示隐私政策弹窗，请求结束后允许继续。弹窗沿用应用的英文界面。
-- 地址包含 `tkzcpoj` 时用作隐私政策链接，继续后进入原生主界面；其他 HTTPS 地址确认后进入 WKWebView。
-- 进入业务 WebView 时保存入口地址，网页加载成功后更新当前地址；隐私政策浏览不覆盖业务缓存。下次请求失败、响应无效或地址为空时使用缓存，没有缓存则进入原生主界面。
+- 地址包含 `tkzcpoj` 时更新隐私政策链接，继续后优先打开已缓存的业务 HTTPS 地址，没有有效缓存则进入原生主界面；其他 HTTPS 地址确认后优先进入 WKWebView。
+- 只在启动接口返回有效且不含 `tkzcpoj` 的 HTTPS 地址时写入缓存；网页重定向、内部跳转及隐私政策浏览均不更新缓存。下次请求失败、响应无效、地址为空或返回隐私政策链接时使用缓存，没有缓存则进入原生主界面。
 - 启动返回地址、缓存回退、WebView 导航及 JS 链接统一只接受 HTTPS。旧 HTTP 缓存不再使用；HTTP 接口返回值视为无效，走原有缓存或原生主界面回退。显式 HTTP 地址不会自动改写，保留系统默认 ATS 配置。
+- 网页加载失败时显示英文 Retry / Cancel 弹窗，不显示额外恢复页面。
+- 缓存使用 `startup.lastAPIWebURL`；旧 `startup.lastEnteredWebURL` 可能保存过网页跳转地址，因此不再读取，收到新的有效业务接口地址后建立缓存。
 - 默认隐私政策使用项目原有地址。仅保存业务 URL，不保存接口响应和登录凭据。
 - `zsh scripts/check-startup.sh` 检查 URL 校验、分类及缓存持久化。Podfile 的 post-integrate hook 声明资源脚本的临时输出，保留 Xcode 脚本沙盒。
 

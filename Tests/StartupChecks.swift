@@ -12,21 +12,39 @@ struct StartupChecks {
         let website = StartupConfiguration.webURL(" https://example.com/start?q=1 ")!
         precondition(!StartupConfiguration.isPrivacyURL(website))
         precondition(StartupConfiguration.webURL("HTTPS://example.com/path") != nil)
+        let cached = URL(string: "https://example.com/cached")!
+        precondition(StartupConfiguration.destinationURL(receivedURL: website, cachedURL: cached) == website)
+        precondition(StartupConfiguration.destinationURL(receivedURL: website, cachedURL: nil) == website)
+        precondition(StartupConfiguration.destinationURL(receivedURL: nil, cachedURL: cached) == cached)
+        precondition(StartupConfiguration.destinationURL(receivedURL: policy, cachedURL: cached) == cached)
+        precondition(StartupConfiguration.destinationURL(receivedURL: policy, cachedURL: nil) == nil)
+        precondition(StartupConfiguration.destinationURL(receivedURL: nil, cachedURL: nil) == nil)
+        precondition(StartupConfiguration.destinationURL(receivedURL: nil, cachedURL: policy) == nil)
+        precondition(StartupConfiguration.destinationURL(receivedURL: policy, cachedURL: URL(string: "http://example.com")) == nil)
+        precondition(StartupConfiguration.destinationURL(receivedURL: URL(string: "http://example.com"), cachedURL: cached) == cached)
+        print("Startup destination and cached fallback checks passed")
         let suite = "StartupChecks.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let store = StartupURLStore(defaults: defaults)
         precondition(store.lastURL == nil)
-        defaults.set("http://example.com/old", forKey: "startup.lastEnteredWebURL")
+        defaults.set("https://example.com/redirected", forKey: "startup.lastEnteredWebURL")
+        precondition(store.lastURL == nil, "Legacy WebView URLs have no reliable API provenance")
+        defaults.set("http://example.com/old", forKey: "startup.lastAPIWebURL")
         precondition(store.lastURL == nil, "Legacy HTTP cache must not be used")
-        store.save(website)
+        store.saveAPIURL(website)
         precondition(StartupURLStore(defaults: defaults).lastURL == website)
-        store.save(policy)
+        store.saveAPIURL(policy)
         precondition(store.lastURL == website, "Policy must not replace fallback URL")
-        store.save(URL(string: "file:///tmp/a")!)
+        store.saveAPIURL(URL(string: "file:///tmp/a")!)
         precondition(store.lastURL == website)
-        store.save(URL(string: "http://example.com/new")!)
+        store.saveAPIURL(URL(string: "http://example.com/new")!)
         precondition(store.lastURL == website, "HTTP must not replace a valid HTTPS cache")
+        let nextAPIURL = URL(string: "https://example.com/next-entry")!
+        store.saveAPIURL(nextAPIURL)
+        precondition(StartupURLStore(defaults: defaults).lastURL == nextAPIURL)
+        precondition(StartupConfiguration.destinationURL(receivedURL: policy, cachedURL: store.lastURL) == nextAPIURL)
+        precondition(StartupConfiguration.destinationURL(receivedURL: nil, cachedURL: store.lastURL) == nextAPIURL)
         precondition(StartupScriptBridge.externalURL(from: ["url": "http://example.com", "href": "https://example.com"])?.scheme == "https")
         for body: Any in [" https://example.com/path ", "//example.com/path", "example.com/path",
                           ["url": "https://example.com/path"], ["href": "https://example.com/path"],

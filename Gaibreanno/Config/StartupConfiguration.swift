@@ -14,6 +14,16 @@ enum StartupConfiguration {
         return url
     }
 
+    /// Prefer a fresh business URL; otherwise reuse the last cached API business URL.
+    static func destinationURL(receivedURL: URL?, cachedURL: URL?) -> URL? {
+        for candidate in [receivedURL, cachedURL] {
+            if let candidate, let url = webURL(candidate.absoluteString), !isPrivacyURL(url) {
+                return url
+            }
+        }
+        return nil
+    }
+
     static func isPrivacyURL(_ url: URL) -> Bool {
         url.absoluteString.range(of: "tkzcpoj", options: .caseInsensitive) != nil
     }
@@ -21,7 +31,8 @@ enum StartupConfiguration {
 
 final class StartupURLStore {
     private let defaults: UserDefaults
-    private let key = "startup.lastEnteredWebURL"
+    // Legacy WebView-written values may contain redirects; do not reuse them.
+    private let key = "startup.lastAPIWebURL"
 
     init(defaults: UserDefaults = .standard) { self.defaults = defaults }
 
@@ -32,7 +43,7 @@ final class StartupURLStore {
         return url
     }
 
-    func save(_ url: URL) {
+    func saveAPIURL(_ url: URL) {
         guard StartupConfiguration.webURL(url.absoluteString) != nil,
               !StartupConfiguration.isPrivacyURL(url) else { return }
         defaults.set(url.absoluteString, forKey: key)

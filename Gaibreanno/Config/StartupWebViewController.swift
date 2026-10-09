@@ -3,7 +3,6 @@ import WebKit
 
 final class StartupWebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     private let initialURL: URL
-    private let store: StartupURLStore?
     private let userContentController = WKUserContentController()
     private lazy var webView: WKWebView = {
         let handler = StartupWeakScriptMessageHandler(target: self)
@@ -13,12 +12,10 @@ final class StartupWebViewController: UIViewController, WKNavigationDelegate, WK
         configuration.userContentController = userContentController
         return WKWebView(frame: .zero, configuration: configuration)
     }()
-    private var entered = false
     var onClose: (() -> Void)?
 
-    init(url: URL, store: StartupURLStore?) {
+    init(url: URL) {
         initialURL = url
-        self.store = store
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -26,7 +23,7 @@ final class StartupWebViewController: UIViewController, WKNavigationDelegate, WK
         StartupScriptBridge.names.forEach { userContentController.removeScriptMessageHandler(forName: $0) }
     }
 
-    required init?(coder: NSCoder) { fatalError("Use init(url:store:)") }
+    required init?(coder: NSCoder) { fatalError("Use init(url:)") }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -49,21 +46,9 @@ final class StartupWebViewController: UIViewController, WKNavigationDelegate, WK
         webView.load(URLRequest(url: initialURL))
     }
 
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        if !entered {
-            entered = true
-            store?.save(initialURL)
-        }
-    }
-
     @objc private func close() { dismiss(animated: true, completion: onClose) }
     @objc private func retry() {
         webView.load(URLRequest(url: webView.url ?? initialURL))
-    }
-
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if let url = webView.url { store?.save(url) }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
@@ -94,11 +79,34 @@ final class StartupWebViewController: UIViewController, WKNavigationDelegate, WK
     }
 
     private func showError(_ error: Error) {
-        guard (error as NSError).code != NSURLErrorCancelled, presentedViewController == nil else { return }
-        let alert = UIAlertController(title: "Unable to Load Page", message: error.localizedDescription, preferredStyle: .alert)
+        let failure = error as NSError
+        guard !(failure.domain == NSURLErrorDomain && failure.code == NSURLErrorCancelled),
+              presentedViewController == nil else { return }
+        let alert = UIAlertController(title: "Unable to Load Page", message: englishErrorMessage(for: failure), preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Retry", style: .default) { [weak self] _ in self?.retry() })
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         present(alert, animated: true)
+    }
+
+    private func englishErrorMessage(for error: NSError) -> String {
+        // System error descriptions follow the device language; keep this UI in English.
+        if error.domain == NSURLErrorDomain {
+            switch error.code {
+            case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
+                return "Please check your internet connection and try again."
+            case NSURLErrorTimedOut:
+                return "The page took too long to load. Please try again."
+            case NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost, NSURLErrorDNSLookupFailed:
+                return "The server is currently unavailable. Please try again later."
+            case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted,
+                 NSURLErrorServerCertificateHasBadDate, NSURLErrorServerCertificateHasUnknownRoot,
+                 NSURLErrorServerCertificateNotYetValid, NSURLErrorAppTransportSecurityRequiresSecureConnection:
+                return "A secure connection could not be established. Please try again later."
+            default:
+                break
+            }
+        }
+        return "The page could not be loaded. Please try again later."
     }
 }
 

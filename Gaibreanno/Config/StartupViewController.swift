@@ -32,11 +32,10 @@ final class StartupViewController: UIViewController {
                 if StartupConfiguration.isPrivacyURL(url) {
                     self.privacyURL = url
                 } else {
-                    self.destinationURL = url
+                    self.store.saveAPIURL(url)
                 }
-            } else {
-                self.destinationURL = self.store.lastURL
             }
+            self.destinationURL = StartupConfiguration.destinationURL(receivedURL: url, cachedURL: self.store.lastURL)
             self.ready = true
             self.updatePrompt()
         }
@@ -68,7 +67,7 @@ final class StartupViewController: UIViewController {
     }
 
     private func showPrivacy() {
-        let policy = StartupWebViewController(url: privacyURL, store: nil)
+        let policy = StartupWebViewController(url: privacyURL)
         policy.title = "Privacy Policy"
         policy.onClose = { [weak self] in self?.showPrompt() }
         let navigation = UINavigationController(rootViewController: policy)
@@ -80,7 +79,7 @@ final class StartupViewController: UIViewController {
         guard ready, let window = view.window else { return }
         PushNotificationManager.shared.requestAuthorizationAndRegister()
         if let destinationURL {
-            let browser = StartupWebViewController(url: destinationURL, store: store)
+            let browser = StartupWebViewController(url: destinationURL)
             window.rootViewController = browser
         } else {
             window.rootViewController = UIStoryboard(name: "Main", bundle: nil).instantiateInitialViewController()
