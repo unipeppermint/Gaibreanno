@@ -2,7 +2,7 @@ import UIKit
 import SafariServices
 
 final class ViewController: UIViewController, UIGestureRecognizerDelegate {
-    private enum Screen { case lobby, deck, library, battle, reward, level, settings, contracts }
+    private enum Screen { case lobby, deck, library, battle, reward, level, settings, contracts, notifications }
     private let store = GameStore()
     private let backdrop = GameBackdrop()
     private let scroll = UIScrollView()
@@ -83,6 +83,7 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         switch screen {
         case .contracts: height = buildContracts()
         case .settings: height = buildSettings()
+        case .notifications: height = buildNotifications()
         case .level: height = buildLevels()
         case .lobby: height = buildLobby()
         case .deck: height = buildDeckWorkshop()
@@ -752,6 +753,41 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         let alert = UIAlertController(title: "Battle Log", message: store.state.activeBattle?.log.suffix(14).joined(separator: "\n\n").replacingOccurrences(of: " chips", with: " gold"), preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Resume", style: .default)); present(alert, animated: true)
     }
+    private func buildNotifications() -> CGFloat {
+        let back = button("Back", CGRect(x: 16, y: 8, width: 62, height: 38)) { [weak self] in self?.show(.settings) }
+        back.accessibilityIdentifier = "notifications.back"
+        title("Notifications", frame: CGRect(x: 84, y: 4, width: width - 100, height: 48), size: 30)
+        let message = LocalNotificationMessage.welcome
+        label(message.isRead ? "1 message" : "1 unread message", CGRect(x: 16, y: 70, width: inner, height: 24), size: 14, color: Palette.quiet)
+        let panel = GamePanel(color: UIColor(hex: 0x20377F))
+        panel.frame = CGRect(x: 16, y: 110, width: inner, height: 200)
+        content.addSubview(panel)
+        label(message.isRead ? "WELCOME · READ" : "WELCOME · NEW", CGRect(x: 18, y: 16, width: inner - 36, height: 20), size: 12, color: Palette.cyan, parent: panel)
+        let heading = label(message.title, CGRect(x: 18, y: 46, width: inner - 36, height: 30), size: 21, parent: panel)
+        heading.adjustsFontSizeToFitWidth = true
+        let body = label(message.body, CGRect(x: 18, y: 88, width: inner - 36, height: 80), size: 15, color: Palette.quiet, parent: panel, weight: .regular)
+        body.numberOfLines = 0
+        body.frame.size.height = body.sizeThatFits(CGSize(width: inner - 36, height: .greatestFiniteMagnitude)).height
+        panel.frame.size.height = body.frame.maxY + 24
+        let open = UIButton(frame: panel.bounds)
+        open.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        open.accessibilityLabel = "\(message.title). \(message.body)"
+        open.accessibilityHint = "Open message and mark as read"
+        open.accessibilityIdentifier = "notifications.welcome"
+        open.addTarget(self, action: #selector(openWelcomeNotification), for: .touchUpInside)
+        panel.addSubview(open)
+        return panel.frame.maxY + 24
+    }
+
+    @objc private func openWelcomeNotification() {
+        let message = LocalNotificationMessage.welcome
+        message.markAsRead()
+        redraw()
+        let alert = UIAlertController(title: message.title, message: message.body, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "Got It", style: .default))
+        present(alert, animated: !store.state.reducedMotion)
+    }
+
     private func showSettings() {
         show(.settings)
     }
@@ -785,9 +821,12 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         help.accessibilityIdentifier = "settings.rules"
         let privacy = button("Privacy Policy", CGRect(x: 16, y: 418, width: inner, height: 58), icon: "hand.raised.fill") { [weak self] in self?.showPrivacyPolicy() }
         privacy.accessibilityIdentifier = "settings.privacy"
-        let note = label("Settings save automatically\nDecks and progress stay on this device", CGRect(x: 24, y: 494, width: width - 48, height: 52), size: 13, color: Palette.quiet, align: .center)
+        let message = LocalNotificationMessage.welcome
+        let notifications = button(message.isRead ? "Notifications" : "Notifications · 1 New", CGRect(x: 16, y: 488, width: inner, height: 58), icon: message.isRead ? "bell.fill" : "bell.badge.fill") { [weak self] in self?.show(.notifications) }
+        notifications.accessibilityIdentifier = "settings.notifications"
+        let note = label("Settings save automatically\nDecks and progress stay on this device", CGRect(x: 24, y: 564, width: width - 48, height: 52), size: 13, color: Palette.quiet, align: .center)
         note.numberOfLines = 2
-        return 568
+        return 638
     }
     private func showPrivacyPolicy() {
         guard let url = URL(string: "https://tkzcpoj.netlify.app/time-cards/privacy-policy/") else { return }
