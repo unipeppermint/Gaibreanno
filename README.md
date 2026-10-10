@@ -138,7 +138,7 @@ window.webkit.messageHandlers.open.postMessage({ url: 'https://example.com' });
 运行 `pod install` 后打开 `Gaibreanno.xcworkspace`。
 
 - 实现在 `Gaibreanno/Config/PushNotificationManager.swift`；AppDelegate 初始化服务并转交 APNs 注册结果。
-- 点击启动弹窗的 Continue 后请求通知权限，允许后注册 APNs，手动关联 APNs Token 与 FCM Token。前台通知显示横幅、列表、声音和角标；点击通知会发布 `notificationWasOpened`，并在 `lastOpenedNotification` 保存最近一次点击的载荷，便于启动完成后读取。
+- 点击启动弹窗的 Continue 后请求系统通知权限，该授权独立于 Firebase 是否配置成功；允许且 Firebase 配置正确后注册 APNs，手动关联 APNs Token 与 FCM Token。已允许或已拒绝过的系统授权不会再次弹窗，可在系统设置中更改。完成启动流程后，每次回到前台会重新检查权限；在设置中开启通知后可自动补注册。首次启动页仍显示时不会提前请求授权。前台通知显示横幅、列表、声音和角标；点击通知会发布 `notificationWasOpened`，并在 `lastOpenedNotification` 保存最近一次点击的载荷，便于启动完成后读取。
 - `currentToken` 提供当前 FCM Token，`tokenDidChange` 通知的 `userInfo["token"]` 提供刷新后的 Token。Debug 控制台输出 Token，供 Firebase 控制台测试；当前未提供业务服务端 Token 上传接口，因此尚未上传至业务后端。
 - 已开启 Push Notifications capability 并添加 APNs entitlement。保留原 Bundle ID、签名团队和部署版本。开发 entitlement 使用 development，分发环境由 Xcode 签名/导出时根据 provisioning profile 处理。
 - 此次实现普通通知推送，不启用静默推送后台任务，不自动按通知载荷跳转网页。

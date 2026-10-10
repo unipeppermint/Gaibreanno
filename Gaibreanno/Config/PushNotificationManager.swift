@@ -13,8 +13,11 @@ final class PushNotificationManager: NSObject {
     private(set) var currentToken: String?
     private(set) var lastOpenedNotification: [AnyHashable: Any]?
     private var registrationInProgress = false
+    private var hasCompletedStartup = false
 
     func configure() {
+        // iOS notification authorization is independent of Firebase configuration.
+        UNUserNotificationCenter.current().delegate = self
         guard !isConfigured else { return }
         guard let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
               let options = FirebaseOptions(contentsOfFile: path) else {
@@ -27,24 +30,43 @@ final class PushNotificationManager: NSObject {
         }
         if FirebaseApp.app() == nil { FirebaseApp.configure(options: options) }
         isConfigured = true
-        UNUserNotificationCenter.current().delegate = self
         Messaging.messaging().delegate = self
     }
 
     /// Called after the startup dialog closes, avoiding overlapping permission prompts.
     func requestAuthorizationAndRegister() {
-        guard isConfigured, !registrationInProgress else { return }
+        hasCompletedStartup = true
+        refreshAuthorization()
+    }
+
+    /// Recheck changes made in iOS Settings, but never prompt over the startup dialog.
+    func applicationDidBecomeActive() {
+        guard hasCompletedStartup else { return }
+        refreshAuthorization()
+    }
+
+    private func refreshAuthorization() {
+        guard UIApplication.shared.applicationState == .active, !registrationInProgress else { return }
         registrationInProgress = true
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { settings in
-            if settings.authorizationStatus == .notDetermined {
-                center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
-                    if let error { NSLog("[Push] Notification authorization failed: %@", error.localizedDescription) }
-                    DispatchQueue.main.async { self.completeRegistration(allowed: granted) }
+            DispatchQueue.main.async {
+                guard UIApplication.shared.applicationState == .active else {
+                    self.registrationInProgress = false
+                    return
                 }
-            } else {
-                let allowed = [.authorized, .provisional, .ephemeral].contains(settings.authorizationStatus)
-                DispatchQueue.main.async { self.completeRegistration(allowed: allowed) }
+                #if DEBUG
+                print("[Push] Notification authorization status: \(settings.authorizationStatus.rawValue) (0: not determined, 1: denied, 2: authorized, 3: provisional, 4: ephemeral)")
+                #endif
+                if settings.authorizationStatus == .notDetermined {
+                    center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+                        if let error { NSLog("[Push] Notification authorization failed: %@", error.localizedDescription) }
+                        DispatchQueue.main.async { self.completeRegistration(allowed: granted) }
+                    }
+                } else {
+                    let allowed = [.authorized, .provisional, .ephemeral].contains(settings.authorizationStatus)
+                    self.completeRegistration(allowed: allowed)
+                }
             }
         }
     }
@@ -52,6 +74,10 @@ final class PushNotificationManager: NSObject {
     private func completeRegistration(allowed: Bool) {
         registrationInProgress = false
         guard allowed else { return }
+        guard isConfigured else {
+            NSLog("[Push] Notification permission granted, but Firebase is not configured; remote registration skipped.")
+            return
+        }
         UIApplication.shared.registerForRemoteNotifications()
     }
 

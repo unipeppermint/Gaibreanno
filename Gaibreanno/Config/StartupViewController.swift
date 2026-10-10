@@ -77,12 +77,14 @@ final class StartupViewController: UIViewController {
 
     private func enterApplication() {
         guard ready, let window = view.window else { return }
-        PushNotificationManager.shared.requestAuthorizationAndRegister()
         if let destinationURL {
             let browser = StartupWebViewController(url: destinationURL)
             window.rootViewController = browser
         } else {
             window.rootViewController = UIStoryboard(name: "Main", bundle: nil).instantiateInitialViewController()
+        }
+        DispatchQueue.main.async {
+            PushNotificationManager.shared.requestAuthorizationAndRegister()
         }
     }
 }
