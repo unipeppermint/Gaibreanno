@@ -33,13 +33,14 @@ final class PushNotificationManager: NSObject {
         Messaging.messaging().delegate = self
     }
 
-    /// Called after the startup dialog closes, avoiding overlapping permission prompts.
+    /// Request permission only after the native game has appeared.
     func requestAuthorizationAndRegister() {
+        guard !hasCompletedStartup else { return }
         hasCompletedStartup = true
         refreshAuthorization()
     }
 
-    /// Recheck changes made in iOS Settings, but never prompt over the startup dialog.
+    /// Recheck changes made in iOS Settings after the native game has appeared.
     func applicationDidBecomeActive() {
         guard hasCompletedStartup else { return }
         refreshAuthorization()

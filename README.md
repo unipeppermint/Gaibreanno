@@ -58,12 +58,12 @@
 
 ## 运行
 
-用 Xcode 打开 `Gaibreanno.xcodeproj`，选择 `Gaibreanno` scheme 和 iPhone 模拟器运行。
+运行 `pod install` 后，用 Xcode 打开 `Gaibreanno.xcworkspace`，选择 `Gaibreanno` scheme 和 iPhone 模拟器运行。
 
-保留了原有 Bundle ID `com.cvlc.Gaibreanno`、签名方式、部署目标以及 Debug / Release 配置。应用显示名称为“Time Cards”。没有添加第三方依赖。
+保留了原有 Bundle ID `com.cvlc.Gaibreanno`、签名方式、部署目标以及 Debug / Release 配置。应用显示名称为“Time Cards”。第三方依赖仅保留 Firebase 推送及其传递依赖。
 
 ```sh
-xcodebuild -project Gaibreanno.xcodeproj \
+xcodebuild -workspace Gaibreanno.xcworkspace \
   -scheme Gaibreanno -configuration Debug -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath /private/tmp/gaibreanno-build \
@@ -103,34 +103,15 @@ xcodebuild -project Gaibreanno.xcodeproj \
 
 这是可运行的本地单机版本。当前没有接入内购、广告、联机、账号服务或云同步；游戏进度随本机应用数据保存。关卡数值与卡牌效果集中在状态机中，可继续扩展内容与平衡性。
 
-## 启动接口与等待页
+## 原生启动与审核整改
 
-使用 `pod install` 安装 Alamofire 后，打开 `Gaibreanno.xcworkspace` 构建。
-启动功能位于 `Gaibreanno/Config`，由 `SceneDelegate` 设置启动控制器：
+应用固定通过 `Main.storyboard` 进入原生游戏，不依赖服务器响应。已删除启动接口、远程网页主界面、业务 URL 缓存回退、JavaScript 桥以及 Alamofire 依赖。
 
-- POST `https://scqelfhta.top/v2/api/user/login`，表单参数 `username=com.aqej.dxsbcm`，超时 15 秒；解析 `code == 1` 的 `data.path`。
-- 等待页直接嵌入 `LaunchScreen.storyboard`，展示隐私政策弹窗，请求结束后允许继续。弹窗沿用应用的英文界面。
-- 地址包含 `tkzcpoj` 时更新隐私政策链接，继续后优先打开已缓存的业务 HTTPS 地址，没有有效缓存则进入原生主界面；其他 HTTPS 地址确认后优先进入 WKWebView。
-- 只在启动接口返回有效且不含 `tkzcpoj` 的 HTTPS 地址时写入缓存；网页重定向、内部跳转及隐私政策浏览均不更新缓存。下次请求失败、响应无效、地址为空或返回隐私政策链接时使用缓存，没有缓存则进入原生主界面。
-- 启动返回地址、缓存回退、WebView 导航及 JS 链接统一只接受 HTTPS。旧 HTTP 缓存不再使用；HTTP 接口返回值视为无效，走原有缓存或原生主界面回退。显式 HTTP 地址不会自动改写，保留系统默认 ATS 配置。
-- 网页加载失败时显示英文 Retry / Cancel 弹窗，不显示额外恢复页面。
-- 缓存使用 `startup.lastAPIWebURL`；旧 `startup.lastEnteredWebURL` 可能保存过网页跳转地址，因此不再读取，收到新的有效业务接口地址后建立缓存。
-- 默认隐私政策使用项目原有地址。仅保存业务 URL，不保存接口响应和登录凭据。
-- `zsh scripts/check-startup.sh` 检查 URL 校验、分类及缓存持久化。Podfile 的 post-integrate hook 声明资源脚本的临时输出，保留 Xcode 脚本沙盒。
-
-### JavaScript 调用 iOS
-
-WebView 支持以下两个消息名，均调用系统默认浏览器打开 HTTPS 链接。
-
-```javascript
-window.webkit.messageHandlers.openSafari.postMessage('https://example.com');
-window.webkit.messageHandlers.open.postMessage({ url: 'https://example.com' });
-```
-
-对象参数也支持 `href`、`link`、`target` 字段，依此顺序（`url` 优先）选取有效链接。
-`//example.com/path` 和 `example.com/path` 自动补充 HTTPS；非法参数、非 HTTPS 协议和包含用户名密码的 URL 会被忽略。
-桥接采用弱引用代理，并在控制器释放时移除消息处理器。外部浏览器跳转不修改当前 WebView 的缓存 URL。
-此协议与参考文件相同，为 JS 调用原生的单向消息，不包含 JS 回调。
+- 启动时通过 `GaibreannoLegacyStartupCleanup` 清除旧版本的两项启动地址缓存，保留游戏存档和其他偏好。
+- 隐私政策入口位于 Settings → Privacy Policy，由用户主动点击后用 `SFSafariViewController` 打开固定地址，不参与启动或主界面选择。
+- `zsh scripts/check-startup.sh` 验证全新安装和升级缓存清理、重复执行，以及游戏数据保留。
+- 本地隐私政策源文件 `design/implementation/privacy-policy.html` 已按原生游戏与推送功能更新；线上页面需另行发布。
+- 提交前检查 App Store Connect 的描述、截图和隐私声明与实际功能一致，并在审核备注中明确说明删除的远程分流功能及保留的 Firebase 推送。不要把“游戏可离线运行”描述成“整个应用不联网或不处理设备标识”。
 
 ### Firebase 推送（CocoaPods）
 
@@ -138,7 +119,7 @@ window.webkit.messageHandlers.open.postMessage({ url: 'https://example.com' });
 运行 `pod install` 后打开 `Gaibreanno.xcworkspace`。
 
 - 实现在 `Gaibreanno/Config/PushNotificationManager.swift`；AppDelegate 初始化服务并转交 APNs 注册结果。
-- 点击启动弹窗的 Continue 后请求系统通知权限，该授权独立于 Firebase 是否配置成功；允许且 Firebase 配置正确后注册 APNs，手动关联 APNs Token 与 FCM Token。已允许或已拒绝过的系统授权不会再次弹窗，可在系统设置中更改。完成启动流程后，每次回到前台会重新检查权限；在设置中开启通知后可自动补注册。首次启动页仍显示时不会提前请求授权。前台通知显示横幅、列表、声音和角标；点击通知会发布 `notificationWasOpened`，并在 `lastOpenedNotification` 保存最近一次点击的载荷，便于启动完成后读取。
+- 原生游戏首次显示后请求系统通知权限，该授权独立于 Firebase 是否配置成功；允许且 Firebase 配置正确后注册 APNs，手动关联 APNs Token 与 FCM Token。已允许或已拒绝过的系统授权不会再次弹窗，可在系统设置中更改。游戏显示后每次回到前台会重新检查权限；在设置中开启通知后可自动补注册。前台通知显示横幅、列表、声音和角标；点击通知会发布 `notificationWasOpened`，并在 `lastOpenedNotification` 保存最近一次点击的载荷。
 - `currentToken` 提供当前 FCM Token，`tokenDidChange` 通知的 `userInfo["token"]` 提供刷新后的 Token。Debug 控制台输出 Token，供 Firebase 控制台测试；当前未提供业务服务端 Token 上传接口，因此尚未上传至业务后端。
 - 已开启 Push Notifications capability 并添加 APNs entitlement。保留原 Bundle ID、签名团队和部署版本。开发 entitlement 使用 development，分发环境由 Xcode 签名/导出时根据 provisioning profile 处理。
 - 此次实现普通通知推送，不启用静默推送后台任务，不自动按通知载荷跳转网页。
@@ -147,6 +128,6 @@ window.webkit.messageHandlers.open.postMessage({ url: 'https://example.com' });
 
 1. 将 `Gaibreanno/Resources/GoogleService-Info.plist` 替换为 Firebase 中 Bundle ID 为 `com.cvlc.Gaibreanno` 的 iOS 应用配置。当前提供的文件为 `com.aqej.dxsbcm`，初始化会检查并跳过不匹配配置，避免误连接其他应用。
 2. 在 Apple Developer 的对应 App ID 启用 Push Notifications，使用包含推送权限的签名描述文件；在 Firebase 项目设置 → Cloud Messaging 上传该团队的 APNs authentication key（并填写 Key ID、Team ID）。
-3. 使用签名真机安装，点击 Continue 并允许通知；从 Debug 控制台取得 FCM Token，通过 Firebase 控制台发送测试通知，检查前台、后台与退出后点击通知。
+3. 使用签名真机安装，进入原生游戏并允许通知；从 Debug 控制台取得 FCM Token，通过 Firebase 控制台发送测试通知，检查前台、后台与退出后点击通知。
 
 集成参考：https://firebase.google.com/docs/cloud-messaging/ios/get-started

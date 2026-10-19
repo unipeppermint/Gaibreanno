@@ -47,6 +47,11 @@ final class ViewController: UIViewController, UIGestureRecognizerDelegate {
         }
         NotificationCenter.default.addObserver(self, selector: #selector(saveGame), name: UIApplication.didEnterBackgroundNotification, object: nil)
     }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        PushNotificationManager.shared.requestAuthorizationAndRegister()
+    }
+
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         guard view.bounds.size != lastSize || view.safeAreaInsets != lastSafeInsets else { return }
